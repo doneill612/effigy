@@ -110,6 +110,26 @@ class AsyncDbContext:
             raise RuntimeError("Session not initialized. Use `async with`.")
         return self._session
 
+    @classmethod
+    def configure(cls) -> DbContextConfiguration:
+        config = DbContextConfiguration()
+        cls._configuration = config
+        return config
+
+    @classmethod
+    def create(cls, *, provider: DatabaseProvider | None = None, **engine_opts) -> Self:
+        final_provider = provider
+        final_opts = {**engine_opts}
+        if cls._configuration:
+            config = cls._configuration.build()
+            if final_provider is None:
+                final_provider = config["provider"]
+            final_opts = {**config["engine_opts"], **final_opts}
+
+        if final_provider is None:
+            raise ValueError(f"No database provider configured for {cls.__name__}.")
+        return cls(final_provider, **final_opts)
+
     def _init_dbsets(self) -> None:
         for name, annotation in self.__annotations__.items():
             if get_origin(annotation) is AsyncDbSet:
