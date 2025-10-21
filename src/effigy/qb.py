@@ -128,6 +128,8 @@ class QueryBuilder(_QueryBuilderBase[T]):
 
 
 class AsyncQueryBuilder(_QueryBuilderBase[T]):
+    """Asynchronous query builder utility"""
+
     def __init__(self, entity_type: Type[T], session: AsyncSession):
         super().__init__(entity_type, session)
         # for typehinting purposes, reassign
