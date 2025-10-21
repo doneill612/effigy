@@ -1,4 +1,5 @@
-from typing import Type, ClassVar, get_origin, get_args
+from abc import ABC, abstractmethod
+from typing import ClassVar, get_origin, get_args
 from typing_extensions import Self
 
 from sqlalchemy import create_engine
@@ -11,7 +12,7 @@ from .configuration import DbContextConfiguration
 from .provider.base import DatabaseProvider
 
 
-class DbContext:
+class DbContext(ABC):
     """Synchronous database context"""
 
     _configuration: ClassVar[DbContextConfiguration | None] = None
@@ -25,6 +26,10 @@ class DbContext:
         self._session_factory = sessionmaker(bind=self._engine)
         self._session: Session | None = None
         self._init_dbsets()
+
+    # TODO: implement (OnModelCreating)
+    @abstractmethod
+    def setup(self, builder) -> None: ...
 
     @property
     def session(self) -> Session:
@@ -110,6 +115,10 @@ class AsyncDbContext:
             raise RuntimeError("Session not initialized. Use `async with`.")
         return self._session
 
+    # TODO: implement (OnModelCreating)
+    @abstractmethod
+    def setup(self, builder) -> None: ...
+
     @classmethod
     def configure(cls) -> DbContextConfiguration:
         config = DbContextConfiguration()
@@ -157,6 +166,12 @@ class AsyncDbContext:
             await self._session.close()
         await self._engine.dispose()
 
-    async def __aenter__(self) -> Self: ...
+    async def __enter__(self) -> Self:
+        return self
 
-    async def __aexit__(self) -> None: ...
+    async def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            await self.save_changes()
+        else:
+            await self.session.rollback()
+        await self.session.close()
