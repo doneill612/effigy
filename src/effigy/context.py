@@ -5,6 +5,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker, Session
 
+from effigy.dbset import AsyncDbSet, DbSet
+
 from .configuration import DbContextConfiguration
 from .provider.base import DatabaseProvider
 
@@ -30,8 +32,32 @@ class DbContext:
             self._session = self._session_factory()
         return self._session
 
-    # will come back to this once we start implementing the DB sets.
-    def _init_dbsets(self) -> None: ...
+    @classmethod
+    def configure(cls) -> DbContextConfiguration:
+        config = DbContextConfiguration()
+        cls._configuration = config
+        return config
+
+    @classmethod
+    def create(cls, *, provider: DatabaseProvider | None = None, **engine_opts) -> Self:
+        final_provider = provider
+        final_opts = {**engine_opts}
+        if cls._configuration:
+            config = cls._configuration.build()
+            if final_provider is None:
+                final_provider = config["provider"]
+            final_opts = {**config["engine_opts"], **final_opts}
+
+        if final_provider is None:
+            raise ValueError(f"No database provider configured for {cls.__name__}.")
+        return cls(final_provider, **final_opts)
+
+    def _init_dbsets(self) -> None:
+        for name, annotation in self.__annotations__.items():
+            if get_origin(annotation) is DbSet:
+                entity_type = get_args(annotation)[0]
+                dbset = DbSet(entity_type, self)
+                setattr(self, name, dbset)
 
     def save_changes(self) -> int:
         """Attempts to persist changes to the database.
@@ -84,8 +110,12 @@ class AsyncDbContext:
             raise RuntimeError("Session not initialized. Use `async with`.")
         return self._session
 
-    # will come back to this once we start implementing the DB sets.
-    def _init_dbsets(self) -> None: ...
+    def _init_dbsets(self) -> None:
+        for name, annotation in self.__annotations__.items():
+            if get_origin(annotation) is AsyncDbSet:
+                entity_type = get_args(annotation)[0]
+                dbset = AsyncDbSet(entity_type, self)
+                setattr(self, name, dbset)
 
     async def save_changes(self) -> int:
         """Attempts to persist changes to the database.
