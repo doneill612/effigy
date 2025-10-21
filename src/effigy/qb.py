@@ -2,7 +2,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Generic, TypeVar, Any, cast, Type
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.strategy_options import Load
@@ -30,7 +30,7 @@ class _IncludeChain:
         return final
 
 
-class QueryBuilderBase(Generic[T]):
+class _QueryBuilderBase(Generic[T]):
     """Base class for all query builders containing shared query building logic."""
 
     def __init__(self, entity_type: type[T], session: Session | AsyncSession):
@@ -89,7 +89,9 @@ class QueryBuilderBase(Generic[T]):
         return self
 
 
-class QueryBuilder(QueryBuilderBase[T]):
+class QueryBuilder(_QueryBuilderBase[T]):
+    """Synchronous query builder utility"""
+
     def __init__(self, entity_type: Type[T], session: Session):
         super().__init__(entity_type, session)
         # for typehinting purposes, reassign
@@ -105,5 +107,61 @@ class QueryBuilder(QueryBuilderBase[T]):
         if result is None:
             if default:
                 return default
-            raise ValueError("Statement didn't return any results, and no default was set")
+            raise ValueError("Statement didn't return any results, and no default was supplied")
         return result
+
+    def single(self) -> T:
+        results = self.to_list()
+        if len(results) == 0:
+            raise ValueError("Statement didn't return any results")
+        if len(results) > 0:
+            raise ValueError(f"Expected one result, found {len(results)}")
+        return results[0]
+
+    def count(self) -> int:
+        statement = self._compile()
+        count_statement = select(func.count()).select_from(statement.subquery())
+        return self._session.execute(count_statement).scalar() or 0
+
+    def any(self) -> bool:
+        return self.count() > 0
+
+
+class AsyncQueryBuilder(_QueryBuilderBase[T]):
+    def __init__(self, entity_type: Type[T], session: AsyncSession):
+        super().__init__(entity_type, session)
+        # for typehinting purposes, reassign
+        self._session = session
+
+    async def to_list(self) -> list[T]:
+        statement = self._compile()
+        exc = await self._session.execute(statement)
+        result = exc.scalars()
+        return list(result)
+
+    async def first(self, *, default: T | None = None) -> T:
+        statement = self._compile()
+        exc = await self._session.execute(statement)
+        result = exc.scalars().first()
+        if result is None:
+            if default:
+                return default
+            raise ValueError("Statement didn't return any results, and no default was supplied")
+        return result
+
+    async def single(self) -> T:
+        results = await self.to_list()
+        if len(results) == 0:
+            raise ValueError("Statement didn't return any results")
+        if len(results) > 0:
+            raise ValueError(f"Expected one result, found {len(results)}")
+        return results[0]
+
+    async def count(self) -> int:
+        statement = self._compile()
+        count_statement = select(func.count()).select_from(statement.subquery())
+        exc = await self._session.execute(count_statement)
+        return exc.scalar() or 0
+
+    async def any(self) -> bool:
+        return await self.count() > 0
