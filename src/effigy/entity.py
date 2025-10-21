@@ -14,6 +14,19 @@ class Entity(Protocol):
     __table__: Any
 
 
+class EntityProxy(Generic[T]):
+    def __init__(self, entity_type: Type[T]):
+        self._entity_type = entity_type
+
+    def __getattr__(self, name: str):
+        if not hasattr(self._entity_type, name):
+            raise AttributeError("")
+        return getattr(self._entity_type, name)
+
+    def __repr__(self) -> str:
+        return f"EntityProxy({self._entity_type.__name__})"
+
+
 class Queryable(Protocol[T]):
     """Protocol for queryable collections"""
 

@@ -1,0 +1,109 @@
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Generic, TypeVar, Any, cast, Type
+
+from sqlalchemy import Select, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm.strategy_options import Load
+from sqlalchemy.sql import ColumnElement
+from typing_extensions import Self
+
+from .entity import EntityProxy
+
+T = TypeVar("T")
+
+
+@dataclass
+class _IncludeChain:
+    root: Any
+    thens: list[Callable[[EntityProxy[Any]], Any]]
+
+    def to_load_opts(self) -> Load:
+        load = cast(Load, joinedload(self.root))
+        final = load
+        for then in self.thens:
+            tmapper = final.path[-1]
+            proxy = EntityProxy(tmapper.entity)
+            nested = then(proxy)
+            final = cast(Load, final.joinedload(nested))
+        return final
+
+
+class QueryBuilderBase(Generic[T]):
+    """Base class for all query builders containing shared query building logic."""
+
+    def __init__(self, entity_type: type[T], session: Session | AsyncSession):
+        self._entity_type = entity_type
+        self._session = session
+        self._statement: Select[tuple[T]] = select(entity_type)
+        self._includes: list[_IncludeChain] = []
+        self._chain: _IncludeChain | None = None
+
+    def where(self, predicate: Callable[[EntityProxy[T]], ColumnElement[bool]]) -> Self:
+        proxy = EntityProxy(self._entity_type)
+        filter_expr = predicate(proxy)
+
+        self._statement = self._statement.where(filter_expr)
+        return self
+
+    def include(self, navigation: Callable[[EntityProxy[T]], Any]) -> Self:
+
+        proxy = EntityProxy(self._entity_type)
+        relationship = navigation(proxy)
+
+        self._chain = _IncludeChain(root=relationship, thens=[])
+        self._includes.append(self._chain)
+
+        return self
+
+    def then_include(self, navigation: Callable[[EntityProxy[Any]], Any]) -> Self:
+        if not self._chain:
+            raise RuntimeError("then_include(...) must be called after include(...)")
+        self._chain.thens.append(navigation)
+        return self
+
+    def order_by(self, key: Callable[[EntityProxy[T]], Any], *, desc: bool = False) -> Self:
+        proxy = EntityProxy(self._entity_type)
+        column = key(proxy)
+        self._statement = self._statement.order_by(column if not desc else column.desc())
+        return self
+
+    def _compile(self) -> Select[tuple[T]]:
+        statement = self._statement
+        for include in self._includes:
+            load = include.to_load_opts()
+            statement = statement.options(load)
+        return statement
+
+    def skip(self, count: int) -> Self:
+        self._statement = self._statement.offset(count)
+        return self
+
+    def take(self, count: int) -> Self:
+        self._statement = self._statement.limit(count)
+        return self
+
+    def distinct(self) -> Self:
+        self._statement = self._statement.distinct()
+        return self
+
+
+class QueryBuilder(QueryBuilderBase[T]):
+    def __init__(self, entity_type: Type[T], session: Session):
+        super().__init__(entity_type, session)
+        # for typehinting purposes, reassign
+        self._session = session
+
+    def to_list(self) -> list[T]:
+        statement = self._compile()
+        return list(self._session.execute(statement).scalars())
+
+    def first(self, *, default: T | None = None) -> T:
+        statement = self._compile()
+        result = self._session.execute(statement).scalars().first()
+        if result is None:
+            if default:
+                return default
+            raise ValueError("Statement didn't return any results, and no default was set")
+        return result
