@@ -187,7 +187,7 @@ class TestValidationHelpers:
         class User:
             id: int
 
-        assert _is_attrs_entity(User) is False
+        assert not _is_attrs_entity(User)
 
     def test_is_pydantic_entity_without_pydantic(self) -> None:
 
