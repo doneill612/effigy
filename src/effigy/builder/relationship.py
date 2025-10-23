@@ -24,7 +24,7 @@ class RelationshipConfiguration(Generic[T]):
         navigation_name: str,
         relationship_type: RelationshipType | str,
         entity_type: Type[T],
-        entity_config: EntityConfiguration[T],
+        entity_config: "EntityConfiguration[T]",
     ):
         self._navigation_name = navigation_name
         self._relationship_type = (

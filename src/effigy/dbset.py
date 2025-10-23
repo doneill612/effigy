@@ -1,15 +1,15 @@
-from typing import Type, TypeVar, Generic, Callable, Any
+from typing import Type, TypeVar, Generic, Callable, Any, TYPE_CHECKING
 from sqlalchemy import ColumnElement, select
 from typing_extensions import Self
 
 from effigy.entity import EntityProxy
 
+if TYPE_CHECKING:
+    from .context import DbContext, AsyncDbContext
 
-from .context import DbContext, AsyncDbContext
 from .qb import QueryBuilder, AsyncQueryBuilder
 
 T = TypeVar("T")
-TEntity = TypeVar("TEntity", bound="DbSet")
 
 
 # NOTE: These dbsets should conform to the Queryable protocol
@@ -17,7 +17,7 @@ TEntity = TypeVar("TEntity", bound="DbSet")
 
 class DbSet(Generic[T]):
 
-    def __init__(self, entity_type: Type[T], context: DbContext):
+    def __init__(self, entity_type: Type[T], context: "DbContext"):
         self._entity_type = entity_type
         self._context = context
 
@@ -26,7 +26,7 @@ class DbSet(Generic[T]):
         return entity
 
     def remove(self, entity: T) -> None:
-        return self._context.session.delete(entity)
+        self._context.session.delete(entity)
 
     def where(self, predicate: Callable[[EntityProxy[T]], ColumnElement[bool]]) -> QueryBuilder[T]:
         qb = QueryBuilder(self._entity_type, self._context.session)
@@ -45,7 +45,7 @@ class DbSet(Generic[T]):
 
 class AsyncDbSet(Generic[T]):
 
-    def __init__(self, entity_type: Type[T], context: AsyncDbContext):
+    def __init__(self, entity_type: Type[T], context: "AsyncDbContext"):
         self._entity_type = entity_type
         self._context = context
 
@@ -54,7 +54,7 @@ class AsyncDbSet(Generic[T]):
         return entity
 
     async def remove(self, entity: T) -> None:
-        return await self._context.session.delete(entity)
+        await self._context.session.delete(entity)
 
     def where(
         self, predicate: Callable[[EntityProxy[T]], ColumnElement[bool]]

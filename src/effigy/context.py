@@ -74,13 +74,16 @@ class DbContext(ABC):
         """Attempts to persist changes to the database.
 
         Returns:
-            The total number of tracked changes after this operation
+            The total number of tracked changes in this operation
         """
         try:
             self.session.flush()
+            # capture counts before commit clears them
+            change_count = (
+                len(self.session.dirty) + len(self.session.new) + len(self.session.deleted)
+            )
             self.session.commit()
-            # return total number of tracked changes on this op
-            return len(self.session.dirty) + len(self.session.new)
+            return change_count
         except Exception as e:
             self.session.rollback()
             raise Exception("Something went wrong when saving changes to the database") from e
@@ -123,7 +126,6 @@ class AsyncDbContext(ABC):
             raise RuntimeError("Session not initialized. Use `async with`.")
         return self._session
 
-    # TODO: implement (OnModelCreating)
     @abstractmethod
     def setup(self, builder) -> None: ...
 
@@ -165,13 +167,16 @@ class AsyncDbContext(ABC):
         """Attempts to persist changes to the database.
 
         Returns:
-            The total number of tracked changes after this operation
+            The total number of tracked changes in this operation
         """
         try:
             await self.session.flush()
+            # capture counts before commit clears them
+            change_count = (
+                len(self.session.dirty) + len(self.session.new) + len(self.session.deleted)
+            )
             await self.session.commit()
-            # return total number of tracked changes on this op
-            return len(self.session.dirty) + len(self.session.new)
+            return change_count
         except Exception as e:
             await self.session.rollback()
             raise Exception("Something went wrong when saving changes to the database") from e
@@ -182,6 +187,7 @@ class AsyncDbContext(ABC):
         await self._engine.dispose()
 
     async def __aenter__(self) -> Self:
+        self._session = self._session_factory()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):

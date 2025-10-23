@@ -1,9 +1,8 @@
-from typing import Generic, Type, TypeVar, Protocol, Callable, Any, get_origin, cast, overload
+from typing import Generic, Type, TypeVar, Protocol, Callable, Any, get_origin
 from typing_extensions import Self, dataclass_transform
 from attrs import define, field
 
 T = TypeVar("T")
-TEntity = TypeVar("TEntity", bound="Entity")
 
 
 class Entity(Protocol):

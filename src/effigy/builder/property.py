@@ -13,7 +13,10 @@ T = TypeVar("T")
 
 class PropertyConfiguration(Generic[T]):
     def __init__(
-        self, property_name: str, entity_type: Type[T], entity_configuration: EntityConfiguration[T]
+        self,
+        property_name: str,
+        entity_type: Type[T],
+        entity_configuration: "EntityConfiguration[T]",
     ):
         self._property_name = property_name
         self._entity_type = entity_type
