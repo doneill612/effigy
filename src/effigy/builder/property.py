@@ -2,8 +2,6 @@ from typing import Generic, Type, TypeVar, Any, Callable, TYPE_CHECKING
 
 from sqlalchemy.orm import InstrumentedAttribute
 
-from effigy.entity import EntityProxy
-
 if TYPE_CHECKING:
     from .core import EntityConfiguration
 
@@ -29,7 +27,7 @@ class PropertyConfiguration(Generic[T]):
         self._validators: list[Callable[[Any], bool]] = []
 
     def property(
-        self, navigation: Callable[[EntityProxy[T]], InstrumentedAttribute[object]]
+        self, navigation: Callable[[Type[T]], InstrumentedAttribute[object]]
     ) -> "PropertyConfiguration[T]":
         return self._entity_configuration.property(navigation)
 

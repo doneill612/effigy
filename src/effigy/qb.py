@@ -9,7 +9,6 @@ from sqlalchemy.orm.strategy_options import Load
 from sqlalchemy.sql import ColumnElement
 from typing_extensions import Self
 
-from .entity import EntityProxy
 
 T = TypeVar("T")
 
@@ -17,15 +16,14 @@ T = TypeVar("T")
 @dataclass
 class _IncludeChain:
     root: Any
-    thens: list[Callable[[EntityProxy[Any]], Any]]
+    thens: list[Callable[[Type[Any]], Any]]
 
     def to_load_opts(self) -> Load:
         load = cast(Load, joinedload(self.root))
         final = load
         for then in self.thens:
             tmapper = final.path[-1]
-            proxy = EntityProxy(tmapper.entity)
-            nested = then(proxy)
+            nested = then(tmapper.entity)
             final = cast(Load, final.joinedload(nested))
         return final
 
@@ -40,32 +38,29 @@ class _QueryBuilderBase(Generic[T]):
         self._includes: list[_IncludeChain] = []
         self._chain: _IncludeChain | None = None
 
-    def where(self, predicate: Callable[[EntityProxy[T]], ColumnElement[bool]]) -> Self:
-        proxy = EntityProxy(self._entity_type)
-        filter_expr = predicate(proxy)
+    def where(self, predicate: Callable[[Type[T]], ColumnElement[bool]]) -> Self:
+        filter_expr = predicate(self._entity_type)
 
         self._statement = self._statement.where(filter_expr)
         return self
 
-    def include(self, navigation: Callable[[EntityProxy[T]], Any]) -> Self:
+    def include(self, navigation: Callable[[Type[T]], Any]) -> Self:
 
-        proxy = EntityProxy(self._entity_type)
-        relationship = navigation(proxy)
+        relationship = navigation(self._entity_type)
 
         self._chain = _IncludeChain(root=relationship, thens=[])
         self._includes.append(self._chain)
 
         return self
 
-    def then_include(self, navigation: Callable[[EntityProxy[Any]], Any]) -> Self:
+    def then_include(self, navigation: Callable[[Type[Any]], Any]) -> Self:
         if not self._chain:
             raise RuntimeError("then_include(...) must be called after include(...)")
         self._chain.thens.append(navigation)
         return self
 
-    def order_by(self, key: Callable[[EntityProxy[T]], Any], *, desc: bool = False) -> Self:
-        proxy = EntityProxy(self._entity_type)
-        column = key(proxy)
+    def order_by(self, key: Callable[[Type[T]], Any], *, desc: bool = False) -> Self:
+        column = key(self._entity_type)
         self._statement = self._statement.order_by(column if not desc else column.desc())
         return self
 

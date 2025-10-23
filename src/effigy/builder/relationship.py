@@ -3,7 +3,6 @@ from enum import Enum
 
 from sqlalchemy.orm import InstrumentedAttribute, relationship
 
-from effigy.entity import EntityProxy
 
 if TYPE_CHECKING:
     from .core import EntityConfiguration
@@ -46,7 +45,7 @@ class RelationshipConfiguration(Generic[T]):
         self._back_populates: str | None = None
 
     def with_foreign_key(
-        self, navigation: Callable[[EntityProxy[object]], InstrumentedAttribute[object]]
+        self, navigation: Callable[[Type[object]], InstrumentedAttribute[object]]
     ) -> "RelationshipConfiguration[T]":
         hints = get_type_hints(self._entity_type)
         navtype = hints.get(self._navigation_name)
@@ -57,19 +56,17 @@ class RelationshipConfiguration(Generic[T]):
             self._related_entity = navtype
 
         if self._related_entity:
-            proxy = EntityProxy(self._related_entity)
-            fkattr = navigation(proxy)
+            fkattr = navigation(self._related_entity)
             self._fk_prop = fkattr.key
 
         return self
 
     def backpopulates(
-        self, navigation: Callable[[EntityProxy[object]], InstrumentedAttribute[object]]
+        self, navigation: Callable[[Type[object]], InstrumentedAttribute[object]]
     ) -> "RelationshipConfiguration[T]":
         if not self._related_entity:
             raise ValueError("")
-        proxy = EntityProxy(self._related_entity)
-        backpop = navigation(proxy)
+        backpop = navigation(self._related_entity)
         self._inverse_prop = backpop.key
         self._back_populates = backpop.key
         return self

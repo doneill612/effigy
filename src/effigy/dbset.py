@@ -1,8 +1,6 @@
 from typing import Type, TypeVar, Generic, Callable, Any, TYPE_CHECKING
 from sqlalchemy import ColumnElement, select
-from typing_extensions import Self
 
-from effigy.entity import EntityProxy
 
 if TYPE_CHECKING:
     from .context import DbContext, AsyncDbContext
@@ -28,11 +26,11 @@ class DbSet(Generic[T]):
     def remove(self, entity: T) -> None:
         self._context.session.delete(entity)
 
-    def where(self, predicate: Callable[[EntityProxy[T]], ColumnElement[bool]]) -> QueryBuilder[T]:
+    def where(self, predicate: Callable[[Type[T]], ColumnElement[bool]]) -> QueryBuilder[T]:
         qb = QueryBuilder(self._entity_type, self._context.session)
         return qb.where(predicate)
 
-    def include(self, navigation: Callable[[EntityProxy[T]], Any]) -> QueryBuilder[T]:
+    def include(self, navigation: Callable[[Type[T]], Any]) -> QueryBuilder[T]:
         qb = QueryBuilder(self._entity_type, self._context.session)
         return qb.include(navigation)
 
@@ -56,13 +54,11 @@ class AsyncDbSet(Generic[T]):
     async def remove(self, entity: T) -> None:
         await self._context.session.delete(entity)
 
-    def where(
-        self, predicate: Callable[[EntityProxy[T]], ColumnElement[bool]]
-    ) -> AsyncQueryBuilder[T]:
+    def where(self, predicate: Callable[[Type[T]], ColumnElement[bool]]) -> AsyncQueryBuilder[T]:
         qb = AsyncQueryBuilder(self._entity_type, self._context.session)
         return qb.where(predicate)
 
-    def include(self, navigation: Callable[[EntityProxy[T]], Any]) -> AsyncQueryBuilder[T]:
+    def include(self, navigation: Callable[[Type[T]], Any]) -> AsyncQueryBuilder[T]:
         qb = AsyncQueryBuilder(self._entity_type, self._context.session)
         return qb.include(navigation)
 
