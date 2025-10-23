@@ -10,9 +10,6 @@ from .qb import QueryBuilder, AsyncQueryBuilder
 T = TypeVar("T")
 
 
-# NOTE: These dbsets should conform to the Queryable protocol
-
-
 class DbSet(Generic[T]):
 
     def __init__(self, entity_type: Type[T], context: "DbContext"):

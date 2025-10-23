@@ -3,7 +3,6 @@ from typing import Any
 import pytest
 
 from effigy.entity import (
-    Queryable,
     _is_attrs_entity,
     _is_pydantic_entity,
     _pluralize,
@@ -265,14 +264,3 @@ class TestEntityProtocol:
 
         assert getattr(User, "__tablename__", None) is not None
         # NOTE: __table__ will be be set by the SQLAlchemy model builder
-
-
-class TestQueryableProtocol:
-    """Tests for the Queryable protocol definition. Implementations of the protocol will need testing."""
-
-    def test_queryable_protocol_methods(self) -> None:
-
-        assert hasattr(Queryable, "where")
-        assert hasattr(Queryable, "order_by")
-        assert hasattr(Queryable, "first")
-        assert hasattr(Queryable, "to_list")

@@ -13,15 +13,6 @@ class Entity(Protocol):
     __table__: Any
 
 
-class Queryable(Protocol[T]):
-    """Protocol for queryable collections"""
-
-    def where(self, predicate: Callable[[T], bool]) -> Self: ...
-    def order_by(self, predicate: Callable[[T], bool]) -> Self: ...
-    def first(self, predicate: Callable[[T], bool]) -> T: ...
-    def to_list(self, predicate: Callable[[T], bool]) -> list[T]: ...
-
-
 @dataclass_transform(kw_only_default=False, field_specifiers=(field,))
 def entity(c: Type[T]) -> Type[T]:
     """A decorator that can be used to define an effigy class.
