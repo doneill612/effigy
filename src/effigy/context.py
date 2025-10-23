@@ -27,7 +27,6 @@ class DbContext(ABC):
         self._session: Session | None = None
         self._init_dbsets()
 
-    # TODO: implement (OnModelCreating)
     @abstractmethod
     def setup(self, builder) -> None: ...
 
