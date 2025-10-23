@@ -6,7 +6,7 @@ from .provider.base import DatabaseProvider
 class DbContextConfiguration:
     """Manages configuration for DbContext instances"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._provider: DatabaseProvider | None = None
         self._engine_opts: dict[str, Any] = {}
 
@@ -21,4 +21,4 @@ class DbContextConfiguration:
     def build(self) -> dict[str, Any]:
         if not self._provider:
             raise ValueError("Your configuration doesn't have specify a provider")
-        return {"provider": self._provider, "engine_opts": self._engine_opts}
+        return {"provider": self._provider, "engine_opts": self._engine_opts.copy()}
