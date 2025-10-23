@@ -2,12 +2,12 @@ from abc import ABC, abstractmethod
 from typing import ClassVar, get_origin, get_args
 from typing_extensions import Self
 
-from sqlalchemy import create_engine
+from sqlalchemy import MetaData, create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker, Session
 
-from effigy.dbset import AsyncDbSet, DbSet
-
+from .builder.core import DbBuilder
+from .dbset import AsyncDbSet, DbSet
 from .configuration import DbContextConfiguration
 from .provider.base import DatabaseProvider
 
@@ -24,6 +24,7 @@ class DbContext(ABC):
         opts = {**opts, **engine_options}
         self._engine = create_engine(connection_string, **opts)
         self._session_factory = sessionmaker(bind=self._engine)
+        self._metadata: MetaData | None = None
         self._session: Session | None = None
         self._init_dbsets()
 
@@ -58,6 +59,14 @@ class DbContext(ABC):
         return cls(final_provider, **final_opts)
 
     def _init_dbsets(self) -> None:
+        metadata = MetaData()
+        builder = DbBuilder(metadata)
+
+        self.setup(builder)
+        self._metadata = metadata
+
+        builder.finalize()
+
         for name, annotation in self.__annotations__.items():
             if get_origin(annotation) is DbSet:
                 entity_type = get_args(annotation)[0]

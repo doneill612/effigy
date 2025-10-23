@@ -1,7 +1,7 @@
-from typing import Callable, Any, Type, TypeVar, Generic
+from typing import Callable, Type, TypeVar, Generic
 
-from sqlalchemy import Table, Column, Integer, String, ForeignKey, Index, UniqueConstraint, MetaData
-from sqlalchemy.orm import InstrumentedAttribute, Relationship
+from sqlalchemy import MetaData
+from sqlalchemy.orm import InstrumentedAttribute
 
 
 from .index import IndexConfiguration
