@@ -102,7 +102,7 @@ class DbContext(ABC):
         self.session.close()
 
 
-class AsyncDbContext:
+class AsyncDbContext(ABC):
     """Asynchronous database context"""
 
     _configuration: ClassVar[DbContextConfiguration | None] = None
@@ -182,10 +182,10 @@ class AsyncDbContext:
             await self._session.close()
         await self._engine.dispose()
 
-    async def __enter__(self) -> Self:
+    async def __aenter__(self) -> Self:
         return self
 
-    async def __exit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         if exc_type is None:
             await self.save_changes()
         else:
