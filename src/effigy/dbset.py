@@ -6,8 +6,9 @@ if TYPE_CHECKING:
     from .context import DbContext, AsyncDbContext
 
 from .qb import QueryBuilder, AsyncQueryBuilder
+from .entity import Entity
 
-T = TypeVar("T")
+T = TypeVar("T", bound=Entity)
 
 
 class DbSet(Generic[T]):

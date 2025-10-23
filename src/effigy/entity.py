@@ -3,6 +3,7 @@ from typing_extensions import Self, dataclass_transform
 from attrs import define, field
 
 T = TypeVar("T")
+TEntity = TypeVar("TEntity", bound="Entity")
 
 
 class Entity(Protocol):
@@ -14,7 +15,7 @@ class Entity(Protocol):
 
 
 @dataclass_transform(kw_only_default=False, field_specifiers=(field,))
-def entity(c: Type[T]) -> Type[T]:
+def entity(c: Type[T]) -> Type[TEntity]:
     """A decorator that can be used to define an effigy class.
 
     Internally provides:

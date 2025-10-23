@@ -4,11 +4,12 @@ from sqlalchemy import MetaData
 from sqlalchemy.orm import InstrumentedAttribute
 
 
+from ..entity import Entity
 from .index import IndexConfiguration
 from .property import PropertyConfiguration
 from .relationship import RelationshipConfiguration
 
-T = TypeVar("T")
+T = TypeVar("T", bound=Entity)
 
 
 class DbBuilder:
