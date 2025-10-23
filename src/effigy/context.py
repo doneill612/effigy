@@ -24,7 +24,6 @@ class DbContext(ABC):
         opts = {**opts, **engine_options}
         self._engine = create_engine(connection_string, **opts)
         self._session_factory = sessionmaker(bind=self._engine)
-        self._metadata: MetaData | None = None
         self._session: Session | None = None
         self._init_dbsets()
 
@@ -63,7 +62,6 @@ class DbContext(ABC):
         builder = DbBuilder(metadata)
 
         self.setup(builder)
-        self._metadata = metadata
 
         builder.finalize()
 
@@ -105,6 +103,8 @@ class DbContext(ABC):
 
 
 class AsyncDbContext:
+    """Asynchronous database context"""
+
     _configuration: ClassVar[DbContextConfiguration | None] = None
 
     def __init__(self, provider: DatabaseProvider, **engine_options):
@@ -149,6 +149,13 @@ class AsyncDbContext:
         return cls(final_provider, **final_opts)
 
     def _init_dbsets(self) -> None:
+        metadata = MetaData()
+        builder = DbBuilder(metadata)
+
+        self.setup(builder)
+
+        builder.finalize()
+
         for name, annotation in self.__annotations__.items():
             if get_origin(annotation) is AsyncDbSet:
                 entity_type = get_args(annotation)[0]
