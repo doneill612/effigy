@@ -12,6 +12,7 @@ class DatabaseProvider(Protocol):
         """
         ...
 
+    # TODO: probably want to come up with a type instead of dict[str, Any]
     def get_engine_options(self) -> dict[str, Any]:
         """Gets SQLAlchemy engine configuration options."""
         ...
