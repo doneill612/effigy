@@ -6,14 +6,32 @@ if TYPE_CHECKING:
     from .context import DbContext, AsyncDbContext
 
 from .qb import QueryBuilder, AsyncQueryBuilder
-from .entity import Entity
 
-T = TypeVar("T", bound=Entity)
+T = TypeVar("T")
 
 
 class DbSet(Generic[T]):
+    """Database set for querying and managing entities.
+
+    The entity_type must conform to the Entity protocol (have __tablename__ and __table__).
+    This is validated at runtime during initialization.
+    """
 
     def __init__(self, entity_type: Type[T], context: "DbContext"):
+        # Runtime validation that the type conforms to Entity protocol
+        if not hasattr(entity_type, "__tablename__"):
+            raise TypeError(
+                f"{entity_type.__name__} does not conform to Entity protocol: "
+                f"missing __tablename__ attribute. Did you forget the @entity decorator?"
+            )
+
+        # Note: __table__ might be None initially, will be set by builder
+        if not hasattr(entity_type, "__table__"):
+            raise TypeError(
+                f"{entity_type.__name__} does not conform to Entity protocol: "
+                f"missing __table__ attribute. Did you forget the @entity decorator?"
+            )
+
         self._entity_type = entity_type
         self._context = context
 
@@ -40,8 +58,26 @@ class DbSet(Generic[T]):
 
 
 class AsyncDbSet(Generic[T]):
+    """Async database set for querying and managing entities.
+
+    The entity_type must conform to the Entity protocol (have __tablename__ and __table__).
+    This is validated at runtime during initialization.
+    """
 
     def __init__(self, entity_type: Type[T], context: "AsyncDbContext"):
+        # Runtime validation that the type conforms to Entity protocol
+        if not hasattr(entity_type, "__tablename__"):
+            raise TypeError(
+                f"{entity_type.__name__} does not conform to Entity protocol: "
+                f"missing __tablename__ attribute. Did you forget the @entity decorator?"
+            )
+
+        if not hasattr(entity_type, "__table__"):
+            raise TypeError(
+                f"{entity_type.__name__} does not conform to Entity protocol: "
+                f"missing __table__ attribute. Did you forget the @entity decorator?"
+            )
+
         self._entity_type = entity_type
         self._context = context
 

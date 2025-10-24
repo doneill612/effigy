@@ -5,10 +5,8 @@ from sqlalchemy.orm import InstrumentedAttribute
 if TYPE_CHECKING:
     from .core import EntityConfiguration
 
-from ..entity import Entity
 
-
-T = TypeVar("T", bound=Entity)
+T = TypeVar("T")
 
 
 class PropertyConfiguration(Generic[T]):

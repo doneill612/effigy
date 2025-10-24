@@ -7,9 +7,8 @@ from sqlalchemy.orm import InstrumentedAttribute, relationship
 if TYPE_CHECKING:
     from .core import EntityConfiguration
 
-from ..entity import Entity
 
-T = TypeVar("T", bound=Entity)
+T = TypeVar("T")
 
 
 class RelationshipType(str, Enum):

@@ -99,7 +99,8 @@ class TestEntityDecorator:
         assert "tag1" in user.tags
         assert "tag1" not in user2.tags
 
-    def test_entity_decorator_creates_slotted_class(self) -> None:
+    def test_entity_decorator_creates_dict_class(self) -> None:
+        """Entities use __dict__ (not __slots__) to support SQLAlchemy instrumentation."""
 
         @entity
         class User:
@@ -107,8 +108,10 @@ class TestEntityDecorator:
             name: str
 
         user = User(1, "Alice")
-        assert not hasattr(user, "__dict__")
-        assert getattr(User, "__slots__", None) is not None
+        # Must have __dict__ for SQLAlchemy's instrumented attributes
+        assert hasattr(user, "__dict__")
+        # Should not have __slots__ since we're using slots=False
+        assert getattr(User, "__slots__", None) is None
 
     def test_entity_satisfies_protocol(self) -> None:
 

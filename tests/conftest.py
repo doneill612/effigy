@@ -4,6 +4,7 @@ from typing import Type
 
 import pytest
 
+from effigy.builder.core import DbBuilder
 from effigy.context import AsyncDbContext, DbContext
 from effigy.dbset import AsyncDbSet, DbSet
 from effigy.entity import entity
@@ -34,9 +35,9 @@ class SampleDbContext(DbContext):
 
     users: DbSet[TestUser]
 
-    # no real setup reqd here... not testing db interactions yet
-    def setup(self, _) -> None:
-        pass
+    def setup(self, builder: DbBuilder) -> None:
+        """Configure entities with primary keys"""
+        builder.entity(TestUser).has_key("id")
 
 
 class SampleAsyncDbContext(AsyncDbContext):
@@ -44,9 +45,9 @@ class SampleAsyncDbContext(AsyncDbContext):
 
     users: AsyncDbSet[TestUser]
 
-    def setup(self, builder) -> None:
-        """Minimal setup implementation for testing"""
-        pass
+    def setup(self, builder: DbBuilder) -> None:
+        """Configure entities with primary keys"""
+        builder.entity(TestUser).has_key("id")
 
 
 @pytest.fixture

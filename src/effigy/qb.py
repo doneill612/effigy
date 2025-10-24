@@ -9,9 +9,8 @@ from sqlalchemy.orm.strategy_options import Load
 from sqlalchemy.sql import ColumnElement
 from typing_extensions import Self
 
-from .entity import Entity
 
-T = TypeVar("T", bound=Entity)
+T = TypeVar("T")
 
 
 @dataclass
