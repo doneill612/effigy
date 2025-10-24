@@ -118,7 +118,7 @@ class EntityConfiguration(Generic[T]):
         return rel_config
 
     def _validate_autoincrement(
-        self, field_name: str, field_type: Type, *, autoincrement: bool
+        self, field_name: str, field_type: Type[Any], *, autoincrement: bool
     ) -> None:
         if not autoincrement:
             return

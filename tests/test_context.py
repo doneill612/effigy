@@ -22,8 +22,10 @@ class TestDbContextInitialization:
     ) -> None:
         """DbContext initialization merges provider options with explicit options"""
         context = SampleDbContext(in_memory_provider, echo=True)
-
-        assert context is not None
+        try:
+            assert context is not None
+        finally:
+            context.dispose()
 
     def test_init_dbsets_discovers_dbset_attributes(self, db_context: SampleDbContext) -> None:
         """_init_dbsets discovers and initializes DbSet attributes"""
@@ -57,9 +59,11 @@ class TestDbContextConfiguration:
         db_context_class.configure().with_provider(in_memory_provider)
 
         context = db_context_class.create()
-
-        assert context is not None
-        assert isinstance(context, SampleDbContext)
+        try:
+            assert context is not None
+            assert isinstance(context, SampleDbContext)
+        finally:
+            context.dispose()
 
     def test_create_with_explicit_provider_override(
         self, db_context_class: Type[SampleDbContext], in_memory_provider: InMemoryProvider
@@ -69,9 +73,11 @@ class TestDbContextConfiguration:
         db_context_class.configure().with_provider(other_provider)
 
         context = db_context_class.create(provider=in_memory_provider)
-
-        assert context is not None
-        assert isinstance(context, SampleDbContext)
+        try:
+            assert context is not None
+            assert isinstance(context, SampleDbContext)
+        finally:
+            context.dispose()
 
     def test_create_raises_value_error_when_no_provider(
         self, db_context_class: Type[SampleDbContext]
@@ -89,9 +95,11 @@ class TestDbContextConfiguration:
         db_context_class.configure().with_provider(in_memory_provider).with_engine_opts(echo=False)
 
         context = db_context_class.create(echo=True)
-
-        assert context is not None
-        assert isinstance(context, SampleDbContext)
+        try:
+            assert context is not None
+            assert isinstance(context, SampleDbContext)
+        finally:
+            context.dispose()
 
 
 class TestDbContextSession:

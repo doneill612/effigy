@@ -11,21 +11,23 @@ from tests.conftest import SampleAsyncDbContext
 class TestAsyncDbContextInitialization:
     """Tests for AsyncDbContext initialization"""
 
-    def test_initialization_with_provider(
-        self, async_db_context: SampleAsyncDbContext
-    ) -> None:
+    def test_initialization_with_provider(self, async_db_context: SampleAsyncDbContext) -> None:
         """AsyncDbContext can be initialized with a provider"""
         assert async_db_context is not None
         assert hasattr(async_db_context, "_engine")
         assert hasattr(async_db_context, "_session_factory")
 
-    def test_initialization_merges_engine_options(
+    @pytest.mark.asyncio
+    async def test_initialization_merges_engine_options(
         self, async_in_memory_provider: InMemoryProvider
     ) -> None:
         """AsyncDbContext initialization merges provider options with explicit options"""
-        context = SampleAsyncDbContext(async_in_memory_provider, echo=True)
 
-        assert context is not None
+        context = SampleAsyncDbContext(async_in_memory_provider, echo=True)
+        try:
+            assert context is not None
+        finally:
+            await context.dispose()
 
     def test_init_dbsets_discovers_async_dbset_attributes(
         self, async_db_context: SampleAsyncDbContext
@@ -58,32 +60,40 @@ class TestAsyncDbContextConfiguration:
 
         assert async_db_context_class._configuration is config
 
-    def test_create_with_configured_provider(
+    @pytest.mark.asyncio
+    async def test_create_with_configured_provider(
         self,
         async_db_context_class: Type[SampleAsyncDbContext],
         async_in_memory_provider: InMemoryProvider,
     ) -> None:
         """create() uses configured provider"""
+
         async_db_context_class.configure().with_provider(async_in_memory_provider)
 
         context = async_db_context_class.create()
+        try:
+            assert context is not None
+            assert isinstance(context, SampleAsyncDbContext)
+        finally:
+            await context.dispose()
 
-        assert context is not None
-        assert isinstance(context, SampleAsyncDbContext)
-
-    def test_create_with_explicit_provider_override(
+    @pytest.mark.asyncio
+    async def test_create_with_explicit_provider_override(
         self,
         async_db_context_class: Type[SampleAsyncDbContext],
         async_in_memory_provider: InMemoryProvider,
     ) -> None:
         """create() explicit provider overrides configured provider"""
+
         other_provider = InMemoryProvider(use_async=True)
         async_db_context_class.configure().with_provider(other_provider)
 
         context = async_db_context_class.create(provider=async_in_memory_provider)
-
-        assert context is not None
-        assert isinstance(context, SampleAsyncDbContext)
+        try:
+            assert context is not None
+            assert isinstance(context, SampleAsyncDbContext)
+        finally:
+            await context.dispose()
 
     def test_create_raises_value_error_when_no_provider(
         self, async_db_context_class: Type[SampleAsyncDbContext]
@@ -94,20 +104,23 @@ class TestAsyncDbContextConfiguration:
         with pytest.raises(ValueError, match="No database provider configured"):
             async_db_context_class.create()
 
-    def test_create_merges_engine_options(
+    @pytest.mark.asyncio
+    async def test_create_merges_engine_options(
         self,
         async_db_context_class: Type[SampleAsyncDbContext],
         async_in_memory_provider: InMemoryProvider,
     ) -> None:
-        """create() merges configured engine options with explicit options"""
-        async_db_context_class.configure().with_provider(
-            async_in_memory_provider
-        ).with_engine_opts(echo=False)
+
+        async_db_context_class.configure().with_provider(async_in_memory_provider).with_engine_opts(
+            echo=False
+        )
 
         context = async_db_context_class.create(echo=True)
-
-        assert context is not None
-        assert isinstance(context, SampleAsyncDbContext)
+        try:
+            assert context is not None
+            assert isinstance(context, SampleAsyncDbContext)
+        finally:
+            await context.dispose()
 
 
 class TestAsyncDbContextSession:
@@ -167,9 +180,7 @@ class TestAsyncDbContextContextManager:
     """Tests for AsyncDbContext async context manager protocol"""
 
     @pytest.mark.asyncio
-    async def test_aenter_returns_self(
-        self, async_db_context: SampleAsyncDbContext
-    ) -> None:
+    async def test_aenter_returns_self(self, async_db_context: SampleAsyncDbContext) -> None:
         """__aenter__ returns the context instance"""
         async with async_db_context as ctx:
             assert ctx is async_db_context
@@ -208,9 +219,7 @@ class TestAsyncDbContextDispose:
     """Tests for AsyncDbContext dispose method"""
 
     @pytest.mark.asyncio
-    async def test_dispose_closes_session(
-        self, async_db_context: SampleAsyncDbContext
-    ) -> None:
+    async def test_dispose_closes_session(self, async_db_context: SampleAsyncDbContext) -> None:
         """dispose() closes the session and disposes engine"""
         async with async_db_context:
             session = async_db_context._get_session()

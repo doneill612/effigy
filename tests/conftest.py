@@ -82,16 +82,31 @@ def sample_entities() -> dict[str, Type[Any]]:
 
 
 @pytest.fixture
-def db_context(in_memory_provider: InMemoryProvider) -> SampleDbContext:
-    """Provides an initialized synchronous DbContext instance"""
-
-    return SampleDbContext(in_memory_provider)
+def db_context(in_memory_provider: InMemoryProvider) -> Any:
+    """Provides an initialized synchronous DbContext instance with automatic cleanup"""
+    ctx = SampleDbContext(in_memory_provider)
+    yield ctx
+    ctx.dispose()
 
 
 @pytest.fixture
-def async_db_context(async_in_memory_provider: InMemoryProvider) -> SampleAsyncDbContext:
-    """Provides an initialized asynchronous AsyncDbContext instance"""
-    return SampleAsyncDbContext(async_in_memory_provider)
+def async_db_context(async_in_memory_provider: InMemoryProvider, request: Any) -> Any:
+    """Provides an initialized asynchronous AsyncDbContext instance with automatic cleanup"""
+    import asyncio
+    ctx = SampleAsyncDbContext(async_in_memory_provider)
+    yield ctx
+    # Cleanup - try to use event loop fixture if available, otherwise create new one
+    try:
+        # Try to get event loop fixture from pytest-asyncio (available in async tests)
+        loop = request.getfixturevalue('event_loop')
+        loop.run_until_complete(ctx.dispose())
+    except Exception:
+        # Fall back to creating a new event loop for cleanup
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(ctx.dispose())
+        finally:
+            loop.close()
 
 
 @pytest.fixture

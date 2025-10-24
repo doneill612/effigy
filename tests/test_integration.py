@@ -1,3 +1,5 @@
+from typing import Any, Generator
+
 import pytest
 from sqlalchemy import inspect
 
@@ -67,15 +69,36 @@ class AsyncIntegrationDbContext(AsyncDbContext):
 
 
 @pytest.fixture
-def integration_context(in_memory_provider: InMemoryProvider) -> IntegrationDbContext:
-    return IntegrationDbContext(in_memory_provider)
+def integration_context(
+    in_memory_provider: InMemoryProvider,
+) -> Generator[IntegrationDbContext, None, None]:
+    """Provides an IntegrationDbContext instance with automatic cleanup"""
+    ctx = IntegrationDbContext(in_memory_provider)
+    yield ctx
+    ctx.dispose()
 
 
 @pytest.fixture
 def async_integration_context(
-    async_in_memory_provider: InMemoryProvider,
-) -> AsyncIntegrationDbContext:
-    return AsyncIntegrationDbContext(async_in_memory_provider)
+    async_in_memory_provider: InMemoryProvider, request: Any
+) -> Generator[AsyncIntegrationDbContext, None, None]:
+    """Provides an AsyncIntegrationDbContext instance with automatic cleanup"""
+    import asyncio
+
+    ctx = AsyncIntegrationDbContext(async_in_memory_provider)
+    yield ctx
+    # Cleanup - try to use event loop fixture if available, otherwise create new one
+    try:
+        # Try to get event loop fixture from pytest-asyncio (available in async tests)
+        loop = request.getfixturevalue("event_loop")
+        loop.run_until_complete(ctx.dispose())
+    except Exception:
+        # Fall back to creating a new event loop for cleanup
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(ctx.dispose())
+        finally:
+            loop.close()
 
 
 class TestDatabaseSchemaCreation:
