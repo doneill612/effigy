@@ -196,4 +196,20 @@ class EntityConfiguration(Generic[T]):
             mapper_reg = registry()
             mapper_reg.map_imperatively(self._entity_type, table)
 
-    def _create_relationships(self) -> None: ...
+    def _create_relationships(self) -> None:
+        """Creates SQLAlchemy relationship() objects and attaches them to entity classes.
+
+        This method applies all configured relationships by calling _apply() on each
+        RelationshipConfiguration. The _apply() method:
+        1. Creates a SQLAlchemy relationship() with configured options (cascade, lazy, etc.)
+        2. Attaches the relationship to the entity class as a dynamic attribute
+        3. Handles foreign key references if specified
+        4. Sets up bidirectional relationships via back_populates if configured
+
+        Note: This must be called after _create_table() because relationships may
+        reference foreign key columns that need to exist first.
+        """
+        for rel_config in self._relationships:
+            # TODO: add validation to ensure related entity is also configured
+            # TODO: add validation for foreign key column existence
+            rel_config._apply()
