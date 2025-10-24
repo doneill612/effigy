@@ -36,22 +36,22 @@ class DbSet(Generic[T]):
         self._context = context
 
     def add(self, entity: T) -> T:
-        self._context.session.add(entity)
+        self._context._get_session().add(entity)
         return entity
 
     def remove(self, entity: T) -> None:
-        self._context.session.delete(entity)
+        self._context._get_session().delete(entity)
 
-    def where(self, predicate: Callable[[Type[T]], ColumnElement[bool]]) -> QueryBuilder[T]:
-        qb = QueryBuilder(self._entity_type, self._context.session)
+    def where(self, predicate: Callable[[T], bool]) -> QueryBuilder[T]:
+        qb = QueryBuilder(self._entity_type, self._context._get_session())
         return qb.where(predicate)
 
-    def include(self, navigation: Callable[[Type[T]], Any]) -> QueryBuilder[T]:
-        qb = QueryBuilder(self._entity_type, self._context.session)
+    def include(self, navigation: Callable[[T], Any]) -> QueryBuilder[T]:
+        qb = QueryBuilder(self._entity_type, self._context._get_session())
         return qb.include(navigation)
 
     def to_list(self) -> list[T]:
-        return self._context.session.query(self._entity_type).all()
+        return self._context._get_session().query(self._entity_type).all()
 
     def __iter__(self) -> Iterator[T]:
         return iter(self.to_list())
@@ -82,25 +82,25 @@ class AsyncDbSet(Generic[T]):
         self._context = context
 
     def add(self, entity: T) -> T:
-        self._context.session.add(entity)
+        self._context._get_session().add(entity)
         return entity
 
     async def remove(self, entity: T) -> None:
-        await self._context.session.delete(entity)
+        await self._context._get_session().delete(entity)
 
-    def where(self, predicate: Callable[[Type[T]], ColumnElement[bool]]) -> AsyncQueryBuilder[T]:
-        qb = AsyncQueryBuilder(self._entity_type, self._context.session)
+    def where(self, predicate: Callable[[T], bool]) -> AsyncQueryBuilder[T]:
+        qb = AsyncQueryBuilder(self._entity_type, self._context._get_session())
         return qb.where(predicate)
 
-    def include(self, navigation: Callable[[Type[T]], Any]) -> AsyncQueryBuilder[T]:
-        qb = AsyncQueryBuilder(self._entity_type, self._context.session)
+    def include(self, navigation: Callable[[T], Any]) -> AsyncQueryBuilder[T]:
+        qb = AsyncQueryBuilder(self._entity_type, self._context._get_session())
         return qb.include(navigation)
 
     async def to_list(self) -> list[T]:
-        exc = await self._context.session.execute(select(self._entity_type))
+        exc = await self._context._get_session().execute(select(self._entity_type))
         return list(exc.scalars())
 
-    async def __aiter__(self) -> AsyncIterator[T]:
+    def __aiter__(self) -> AsyncIterator[T]:
         return self._async_iterator()
 
     async def _async_iterator(self) -> AsyncIterator[T]:

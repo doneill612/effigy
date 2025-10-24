@@ -17,7 +17,7 @@ T = TypeVar("T")
 @dataclass
 class _IncludeChain:
     root: Any
-    thens: list[Callable[[Type[Any]], Any]]
+    thens: list[Callable[[Any], Any]]
 
     def to_load_opts(self) -> Load:
         load = cast(Load, joinedload(self.root))
@@ -27,7 +27,7 @@ class _IncludeChain:
             # tmapper.entity returns the mapped class for relationships
             # we know this will have .entity because it's a relationship path
             if hasattr(tmapper, "entity"):
-                nested = then(tmapper.entity)  # type: ignore[arg-type]
+                nested = then(tmapper.entity)
                 final = final.joinedload(nested)
         return final
 
@@ -42,29 +42,31 @@ class _QueryBuilderBase(Generic[T]):
         self._includes: list[_IncludeChain] = []
         self._chain: _IncludeChain | None = None
 
-    def where(self, predicate: Callable[[Type[T]], ColumnElement[bool]]) -> Self:
-        filter_expr = predicate(self._entity_type)
-
-        self._statement = self._statement.where(filter_expr)
+    def where(self, predicate: Callable[[T], bool]) -> Self:
+        # We pass the entity class type, but signature says instance for user convenience
+        # SQLAlchemy's mapped class attributes work like instance attributes at runtime
+        filter_expr = predicate(self._entity_type)  # type: ignore[arg-type]
+        self._statement = self._statement.where(cast(ColumnElement[bool], filter_expr))
         return self
 
-    def include(self, navigation: Callable[[Type[T]], Any]) -> Self:
-
-        relationship = navigation(self._entity_type)
+    def include(self, navigation: Callable[[T], Any]) -> Self:
+        # We pass the entity class type, but signature says instance for user convenience
+        relationship = navigation(self._entity_type)  # type: ignore[arg-type]
 
         self._chain = _IncludeChain(root=relationship, thens=[])
         self._includes.append(self._chain)
 
         return self
 
-    def then_include(self, navigation: Callable[[Type[Any]], Any]) -> Self:
+    def then_include(self, navigation: Callable[[Any], Any]) -> Self:
         if not self._chain:
             raise RuntimeError("then_include(...) must be called after include(...)")
         self._chain.thens.append(navigation)
         return self
 
-    def order_by(self, key: Callable[[Type[T]], Any], *, desc: bool = False) -> Self:
-        column = key(self._entity_type)
+    def order_by(self, key: Callable[[T], Any], *, desc: bool = False) -> Self:
+        # We pass the entity class type, but signature says instance for user convenience
+        column = key(self._entity_type)  # type: ignore[arg-type]
         self._statement = self._statement.order_by(column if not desc else column.desc())
         return self
 

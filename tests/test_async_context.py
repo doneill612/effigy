@@ -116,9 +116,9 @@ class TestAsyncDbContextSession:
     def test_session_raises_runtime_error_before_aenter(
         self, async_db_context: SampleAsyncDbContext
     ) -> None:
-        """session property raises RuntimeError if accessed before async context"""
+        """_get_session() raises RuntimeError if accessed before async context"""
         with pytest.raises(RuntimeError, match="Session not initialized"):
-            _ = async_db_context.session
+            _ = async_db_context._get_session()
 
     @pytest.mark.asyncio
     async def test_session_initialized_in_aenter(
@@ -126,17 +126,17 @@ class TestAsyncDbContextSession:
     ) -> None:
         """__aenter__ initializes session"""
         async with async_db_context:
-            session = async_db_context.session
+            session = async_db_context._get_session()
             assert session is not None
 
     @pytest.mark.asyncio
     async def test_session_reuse_within_context(
         self, async_db_context: SampleAsyncDbContext
     ) -> None:
-        """session property returns same session within async context"""
+        """_get_session() returns same session within async context"""
         async with async_db_context:
-            session1 = async_db_context.session
-            session2 = async_db_context.session
+            session1 = async_db_context._get_session()
+            session2 = async_db_context._get_session()
             assert session1 is session2
 
 
@@ -158,7 +158,7 @@ class TestAsyncDbContextSaveChanges:
     ) -> None:
         """save_changes() rolls back on exception and re-raises"""
         async with async_db_context:
-            _ = async_db_context.session
+            _ = async_db_context._get_session()
 
             assert hasattr(async_db_context, "save_changes")
 
@@ -182,8 +182,8 @@ class TestAsyncDbContextContextManager:
         session_before = None
 
         async with async_db_context:
-            session_before = async_db_context.session
-            assert async_db_context.session is not None
+            session_before = async_db_context._get_session()
+            assert async_db_context._get_session() is not None
 
         assert session_before is not None
 
@@ -196,7 +196,7 @@ class TestAsyncDbContextContextManager:
 
         try:
             async with async_db_context:
-                session_before = async_db_context.session
+                session_before = async_db_context._get_session()
                 raise ValueError("Test exception")
         except ValueError:
             pass
@@ -213,7 +213,7 @@ class TestAsyncDbContextDispose:
     ) -> None:
         """dispose() closes the session and disposes engine"""
         async with async_db_context:
-            session = async_db_context.session
+            session = async_db_context._get_session()
             assert session is not None
 
         await async_db_context.dispose()

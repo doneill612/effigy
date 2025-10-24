@@ -30,8 +30,8 @@ class DbContext(ABC):
     @abstractmethod
     def setup(self, builder: DbBuilder) -> None: ...
 
-    @property
-    def session(self) -> Session:
+    def _get_session(self) -> Session:
+        """Internal method to get or create the session. Not part of public API."""
         if not self._session:
             self._session = self._session_factory()
         return self._session
@@ -43,9 +43,7 @@ class DbContext(ABC):
         return config
 
     @classmethod
-    def create(
-        cls, *, provider: DatabaseProvider | None = None, **engine_opts: Any
-    ) -> Self:
+    def create(cls, *, provider: DatabaseProvider | None = None, **engine_opts: Any) -> Self:
         final_provider = provider
         final_opts = {**engine_opts}
         if cls._configuration:
@@ -66,6 +64,8 @@ class DbContext(ABC):
 
         builder.finalize()
 
+        metadata.create_all(self._engine, checkfirst=True)
+
         for name, annotation in self.__annotations__.items():
             if get_origin(annotation) is DbSet:
                 entity_type = get_args(annotation)[0]
@@ -79,15 +79,16 @@ class DbContext(ABC):
             The total number of tracked changes in this operation
         """
         try:
-            self.session.flush()
+            session = self._get_session()
+            session.flush()
             # capture counts before commit clears them
             change_count = (
-                len(self.session.dirty) + len(self.session.new) + len(self.session.deleted)
+                len(session.dirty) + len(session.new) + len(session.deleted)
             )
-            self.session.commit()
+            session.commit()
             return change_count
         except Exception as e:
-            self.session.rollback()
+            self._get_session().rollback()
             raise Exception("Something went wrong when saving changes to the database") from e
 
     def dispose(self) -> None:
@@ -104,8 +105,8 @@ class DbContext(ABC):
         if exc_type is None:
             self.save_changes()
         else:
-            self.session.rollback()
-        self.session.close()
+            self._get_session().rollback()
+        self._get_session().close()
 
 
 class AsyncDbContext(ABC):
@@ -122,10 +123,10 @@ class AsyncDbContext(ABC):
         self._engine = create_async_engine(connection_string, **opts)
         self._session_factory = async_sessionmaker(bind=self._engine, class_=AsyncSession)
         self._session: AsyncSession | None = None
-        self._init_dbsets()
+        self._metadata = self._init_dbsets()
 
-    @property
-    def session(self) -> AsyncSession:
+    def _get_session(self) -> AsyncSession:
+        """Internal method to get the session. Not part of public API."""
         if not self._session:
             raise RuntimeError("Session not initialized. Use `async with`.")
         return self._session
@@ -140,9 +141,7 @@ class AsyncDbContext(ABC):
         return config
 
     @classmethod
-    def create(
-        cls, *, provider: DatabaseProvider | None = None, **engine_opts: Any
-    ) -> Self:
+    def create(cls, *, provider: DatabaseProvider | None = None, **engine_opts: Any) -> Self:
         final_provider = provider
         final_opts = {**engine_opts}
         if cls._configuration:
@@ -155,7 +154,7 @@ class AsyncDbContext(ABC):
             raise ValueError(f"No database provider configured for {cls.__name__}.")
         return cls(final_provider, **final_opts)
 
-    def _init_dbsets(self) -> None:
+    def _init_dbsets(self) -> MetaData:
         metadata = MetaData()
         builder = DbBuilder(metadata)
 
@@ -169,6 +168,8 @@ class AsyncDbContext(ABC):
                 dbset = AsyncDbSet(entity_type, self)
                 setattr(self, name, dbset)
 
+        return metadata
+
     async def save_changes(self) -> int:
         """Attempts to persist changes to the database.
 
@@ -176,15 +177,16 @@ class AsyncDbContext(ABC):
             The total number of tracked changes in this operation
         """
         try:
-            await self.session.flush()
+            session = self._get_session()
+            await session.flush()
             # capture counts before commit clears them
             change_count = (
-                len(self.session.dirty) + len(self.session.new) + len(self.session.deleted)
+                len(session.dirty) + len(session.new) + len(session.deleted)
             )
-            await self.session.commit()
+            await session.commit()
             return change_count
         except Exception as e:
-            await self.session.rollback()
+            await self._get_session().rollback()
             raise Exception("Something went wrong when saving changes to the database") from e
 
     async def dispose(self) -> None:
@@ -193,6 +195,9 @@ class AsyncDbContext(ABC):
         await self._engine.dispose()
 
     async def __aenter__(self) -> Self:
+        async with self._engine.begin() as conn:
+            await conn.run_sync(self._metadata.create_all, checkfirst=True)
+
         self._session = self._session_factory()
         return self
 
@@ -202,5 +207,5 @@ class AsyncDbContext(ABC):
         if exc_type is None:
             await self.save_changes()
         else:
-            await self.session.rollback()
-        await self.session.close()
+            await self._get_session().rollback()
+        await self._get_session().close()

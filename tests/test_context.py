@@ -97,17 +97,17 @@ class TestDbContextConfiguration:
 class TestDbContextSession:
     """Tests for DbContext session management"""
 
-    def test_session_property_lazy_initialization(self, db_context: SampleDbContext) -> None:
-        """session property creates session on first access"""
+    def test_session_lazy_initialization(self, db_context: SampleDbContext) -> None:
+        """_get_session() creates session on first access"""
         assert db_context._session is None
-        session = db_context.session
+        session = db_context._get_session()
         assert session is not None
         assert db_context._session is session
 
     def test_session_reuse_on_multiple_accesses(self, db_context: SampleDbContext) -> None:
-        """session property returns same session on multiple accesses"""
-        session1 = db_context.session
-        session2 = db_context.session
+        """_get_session() returns same session on multiple accesses"""
+        session1 = db_context._get_session()
+        session2 = db_context._get_session()
 
         assert session1 is session2
 
@@ -135,8 +135,8 @@ class TestDbContextContextManager:
         session_before = None
 
         with db_context:
-            session_before = db_context.session
-            assert db_context.session is not None
+            session_before = db_context._get_session()
+            assert db_context._get_session() is not None
 
         assert session_before is not None
 
@@ -146,7 +146,7 @@ class TestDbContextContextManager:
 
         try:
             with db_context:
-                session_before = db_context.session
+                session_before = db_context._get_session()
                 raise ValueError("Test exception")
         except ValueError:
             pass
@@ -159,7 +159,7 @@ class TestDbContextDispose:
 
     def test_dispose_closes_session(self, db_context: SampleDbContext) -> None:
         """dispose() closes the session and disposes engine"""
-        session = db_context.session
+        session = db_context._get_session()
         assert session is not None
 
         db_context.dispose()
