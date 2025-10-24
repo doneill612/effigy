@@ -1,13 +1,8 @@
 from typing import Any
 
-import pytest
-
 from effigy.entity import (
-    _is_attrs_entity,
-    _is_pydantic_entity,
     _pluralize,
     entity,
-    validate_entity,
 )
 
 
@@ -162,95 +157,6 @@ class TestPluralizeFunction:
     def test_pluralize_single_character(self) -> None:
         assert _pluralize("y") == "ys"
         assert _pluralize("a") == "as"
-
-
-class TestValidationHelpers:
-    """Tests for entity validation helper functions"""
-
-    def test_is_attrs_entity_with_effigy_entity(self) -> None:
-
-        @entity
-        class User:
-            id: int
-
-        assert _is_attrs_entity(User)
-
-    def test_is_attrs_entity_with_attrs_class(self) -> None:
-        from attrs import define
-
-        @define
-        class User:
-            id: int
-
-        assert _is_attrs_entity(User)
-
-    def test_is_attrs_entity_with_regular_class(self) -> None:
-
-        class User:
-            id: int
-
-        assert not _is_attrs_entity(User)
-
-    def test_is_pydantic_entity_without_pydantic(self) -> None:
-
-        class User:
-            id: int
-
-        result = _is_pydantic_entity(User)
-        assert isinstance(result, bool)
-        assert not result
-
-    def test_is_pydantic_entity_with_pydantic(self) -> None:
-        try:
-            from pydantic import BaseModel
-
-            class User(BaseModel):
-                id: int
-
-            assert _is_pydantic_entity(User)
-        except ImportError:
-            pytest.skip("Pydantic not installed")
-
-
-class TestValidateEntity:
-    """Tests for the validate_entity function"""
-
-    def test_validate_entity_with_valid_attrs_entity(self) -> None:
-
-        @entity
-        class User:
-            id: int
-            name: str
-
-        user = User(1, "Alice")
-        # Should not raise
-        validate_entity(user, User)
-
-    def test_validate_entity_with_invalid_entity_type(self) -> None:
-
-        class RegularClass:
-            id: int
-
-        instance = RegularClass()
-
-        with pytest.raises(TypeError, match="is not a valid effigy entity"):
-            validate_entity(instance, RegularClass)
-
-    @pytest.mark.skipif(
-        True, reason="Pydantic not required - skip unless explicitly testing pydantic support"
-    )
-    def test_validate_entity_with_pydantic_model(self) -> None:
-        try:
-            from pydantic import BaseModel
-
-            class User(BaseModel):
-                id: int
-                name: str
-
-            user = User(id=1, name="Alice")
-            validate_entity(user, User)
-        except ImportError:
-            pytest.skip("Pydantic not installed")
 
 
 class TestEntityProtocol:

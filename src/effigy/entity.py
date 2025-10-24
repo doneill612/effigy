@@ -1,4 +1,4 @@
-from typing import Generic, Type, TypeVar, Protocol, Any, get_origin, cast, get_type_hints
+from typing import Generic, Type, TypeVar, Protocol, Any, get_origin, cast
 from typing_extensions import dataclass_transform
 from attrs import define, field
 
@@ -130,34 +130,6 @@ def entity(c: Type[T]) -> Type[Entity[T]]:
     # attrs.define generates __init__ from annotations
     # dataclass_transform decorator tells mypy how to handle this
     return cast(type[Entity[T]], effigy_cls)
-
-
-def _is_attrs_entity(c: Type[Any]) -> bool:
-    return hasattr(c, "__effigy_entity__") or hasattr(c, "__attrs_attrs__")
-
-
-def _is_pydantic_entity(c: Type[Any]) -> bool:
-    try:
-        from pydantic import BaseModel
-
-        return issubclass(c, BaseModel)
-    except ImportError:
-        return False
-
-
-def validate_entity(entity: Any, entity_type: Type[Any]) -> None:
-    if _is_attrs_entity(entity_type):
-        from attrs import validate
-
-        validate(entity)
-    elif _is_pydantic_entity(entity_type):
-        # forced re-validation... pydantic validates on instantiation
-        entity.model_validate(entity)
-    else:
-        raise TypeError(
-            f"{entity_type.__name__} is not a valid effigy entity. "
-            f"Use the @entity decorator or inherit from a Pydantic BaseModel."
-        )
 
 
 def _pluralize(s: str) -> str:
