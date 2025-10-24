@@ -98,7 +98,9 @@ class DbContext(ABC):
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type: type, exc_val: Any, exc_tb: Any):
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any
+    ) -> None:
         if exc_type is None:
             self.save_changes()
         else:
@@ -194,7 +196,9 @@ class AsyncDbContext(ABC):
         self._session = self._session_factory()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any
+    ) -> None:
         if exc_type is None:
             await self.save_changes()
         else:

@@ -5,6 +5,7 @@ from typing import Generic, TypeVar, Any, cast, Type
 from sqlalchemy import Select, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm.base import InspectionAttr
 from sqlalchemy.orm.strategy_options import Load
 from sqlalchemy.sql import ColumnElement
 from typing_extensions import Self
@@ -23,8 +24,11 @@ class _IncludeChain:
         final = load
         for then in self.thens:
             tmapper = final.path[-1]
-            nested = then(tmapper.entity)
-            final = cast(Load, final.joinedload(nested))
+            # tmapper.entity returns the mapped class for relationships
+            # we know this will have .entity because it's a relationship path
+            if hasattr(tmapper, "entity"):
+                nested = then(tmapper.entity)  # type: ignore[arg-type]
+                final = final.joinedload(nested)
         return final
 
 
@@ -89,8 +93,8 @@ class QueryBuilder(_QueryBuilderBase[T]):
 
     def __init__(self, entity_type: Type[T], session: Session):
         super().__init__(entity_type, session)
-        # for typehinting purposes, reassign
-        self._session = session
+        # for typehinting purposes, reassign to narrow type
+        self._session: Session = session
 
     def to_list(self) -> list[T]:
         statement = self._compile()
@@ -127,8 +131,8 @@ class AsyncQueryBuilder(_QueryBuilderBase[T]):
 
     def __init__(self, entity_type: Type[T], session: AsyncSession):
         super().__init__(entity_type, session)
-        # for typehinting purposes, reassign
-        self._session = session
+        # for typehinting purposes, reassign to narrow type
+        self._session: AsyncSession = session
 
     async def to_list(self) -> list[T]:
         statement = self._compile()

@@ -24,7 +24,7 @@ class DbBuilder:
 
     def __init__(self, metadata: MetaData):
         self._metadata = metadata
-        self._entity_configs: dict[Type, EntityConfiguration[Any]] = {}
+        self._entity_configs: dict[Type[Any], EntityConfiguration[Any]] = {}
 
     def entity(self, entity_type: Type[T]) -> "EntityConfiguration[T]":
         if entity_type not in self._entity_configs:
@@ -44,8 +44,8 @@ class EntityConfiguration(Generic[T]):
         self._entity_type = entity_type
         self._builder = builder
         self._pks: list[str] = []
-        self._properties: dict[str, PropertyConfiguration] = {}
-        self._relationships: list[RelationshipConfiguration] = []
+        self._properties: dict[str, PropertyConfiguration[T]] = {}
+        self._relationships: list[RelationshipConfiguration[T]] = []
         self._indexes: list[IndexConfiguration] = []
 
     def property(self, navigation: Callable[[T], Any]) -> PropertyConfiguration[T]:
