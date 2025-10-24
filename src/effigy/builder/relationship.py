@@ -4,6 +4,7 @@ from enum import Enum
 
 from sqlalchemy.orm import relationship
 
+from ..entity import _EntityProxy
 
 if TYPE_CHECKING:
     from .core import EntityConfiguration
@@ -45,25 +46,85 @@ class RelationshipConfiguration(Generic[T]):
         self._lazy: str = "select"
         self._back_populates: str | None = None
 
-    def with_foreign_key(self, navigation: Callable[[Type[object]], Any]) -> Self:
-        hints = get_type_hints(self._entity_type)
-        navtype = hints.get(self._navigation_name)
+    def with_foreign_key(self, navigation: Callable[[Any], Any]) -> Self:
+        """Specifies the foreign key column for the relationship.
+
+        The lambda receives an instance-like proxy of the FK owner entity and should
+        navigate to the FK column:
+        - For ONE_TO_MANY: FK is on the related entity (e.g., lambda p: p.user_id where p is Post)
+        - FOR MANY_TO_ONE: FK is on the current entity (e.g., lambda p: p.user_id where p is Post)
+
+        Args:
+            navigation: Lambda that navigates to the FK property (e.g., lambda p: p.user_id)
+        """
+        if not hasattr(self._entity_type, "__annotations__"):
+            raise ValueError(
+                f"Entity {self._entity_type.__name__} has no type annotations. "
+                f"Cannot configure relationship for '{self._navigation_name}'."
+            )
+
+        entity_annotations = self._entity_type.__annotations__
+        navtype = entity_annotations.get(self._navigation_name)
+
+        if navtype is None:
+            raise ValueError(
+                f"Navigation property '{self._navigation_name}' not found on entity "
+                f"{self._entity_type.__name__}. Available properties: "
+                f"{', '.join(entity_annotations.keys())}"
+            )
 
         if hasattr(navtype, "__args__"):
-            self._related_entity = getattr(navtype, "__args__")[0]
+            related = navtype.__args__[0]
+
+            # handle forward reference strings
+            if isinstance(related, str):
+                import sys
+
+                entity_module = sys.modules.get(self._entity_type.__module__)
+                self._related_entity = (
+                    getattr(entity_module, related, None) if entity_module else None
+                )
+
+                # fail fast if forward reference can't be resolved
+                if self._related_entity is None:
+                    raise ValueError(
+                        f"Cannot resolve forward reference '{related}' for relationship "
+                        f"'{self._navigation_name}' on entity {self._entity_type.__name__}. "
+                        f"Ensure the referenced entity '{related}' is defined at module level "
+                        f"in {self._entity_type.__module__}."
+                    )
+            else:
+                self._related_entity = related
         else:
             self._related_entity = navtype
 
-        if self._related_entity:
-            fkattr = navigation(self._related_entity)
+        if self._relationship_type == RelationshipType.ONE_TO_MANY:
+            # FK is on the related entity (the "many" side)
+            fk_owner = self._related_entity
+        else:  # MANY_TO_ONE
+            # FK is on the current entity (the "many" side)
+            fk_owner = self._entity_type
+
+        if fk_owner:
+            proxy = _EntityProxy(fk_owner)
+            fkattr = navigation(proxy)
             self._fk_prop = fkattr.key
 
         return self
 
-    def backpopulates(self, navigation: Callable[[Type[object]], Any]) -> Self:
+    def backpopulates(self, navigation: Callable[[Any], Any]) -> Self:
+        """Specifies the inverse property for bidirectional relationships.
+
+        The lambda receives an instance-like proxy of the related entity and should
+        navigate to the inverse relationship property.
+
+        Args:
+            navigation: Lambda that navigates to the inverse property (e.g., lambda u: u.posts)
+        """
         if not self._related_entity:
-            raise ValueError("")
-        backpop = navigation(self._related_entity)
+            raise ValueError("Cannot call backpopulates before related entity is determined")
+        proxy = _EntityProxy(self._related_entity)
+        backpop = navigation(proxy)
         self._inverse_prop = backpop.key
         self._back_populates = backpop.key
         return self

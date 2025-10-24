@@ -14,7 +14,7 @@ class DbContextConfiguration:
         self._provider = provider
         return self
 
-    def with_engine_opts(self, **engine_opts: dict[str, Any]) -> "DbContextConfiguration":
+    def with_engine_opts(self, **engine_opts: Any) -> "DbContextConfiguration":
         self._engine_opts.update(engine_opts)
         return self
 

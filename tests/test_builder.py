@@ -243,44 +243,190 @@ class TestTableCreation:
 class TestPropertyConfiguration:
     """Tests for property configuration (unique, required, default)"""
 
-    # TODO: property configuration tests require InstrumentedAttribute
-    # which only exists after SQLAlchemy mapping. Need to revisit the
-    # property configuration API to support string-based configuration
-    # like has_key does, or defer property config until after initial mapping
-
-    @pytest.mark.skip(reason="Property configuration API needs string-based support")
     def test_property_unique_creates_unique_column(self) -> None:
         """property marked as unique should create unique constraint"""
-        pass
 
-    @pytest.mark.skip(reason="Property configuration API needs string-based support")
+        @entity
+        class User:
+            id: int
+            email: str
+
+        class TestContext(DbContext):
+            users: DbSet[User]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(User).has_key(lambda u: u.id).property(lambda u: u.email).unique()
+
+        provider = InMemoryProvider(use_async=False)
+        TestContext(provider)
+
+        assert hasattr(User, "__table__")
+        table = getattr(User, "__table__", None)
+        assert table is not None
+
+        # verify email column has unique constraint
+        assert table.c.email.unique
+
     def test_property_default_value(self) -> None:
         """property with default should set column default"""
-        pass
+
+        @entity
+        class Product:
+            id: int
+            name: str
+            active: bool
+
+        class TestContext(DbContext):
+            products: DbSet[Product]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(Product).has_key(lambda p: p.id).property(
+                    lambda p: p.active
+                ).with_default(True)
+
+        provider = InMemoryProvider(use_async=False)
+        TestContext(provider)
+
+        assert hasattr(Product, "__table__")
+        table = getattr(Product, "__table__", None)
+        assert table is not None
+
+        # verify active column has default value
+        assert table.c.active.default is not None
+        assert table.c.active.default.arg is True
+
+
+# Module-level entities for relationship tests
+@entity
+class RelTestPost:
+    id: int
+    title: str
+    user_id: int
+
+
+@entity
+class RelTestUser:
+    id: int
+    name: str
+    posts: list["RelTestPost"]
+
+
+@entity
+class RelTestUserBidir:
+    id: int
+    name: str
+    posts: list["RelTestPostBidir"]
+
+
+@entity
+class RelTestPostBidir:
+    id: int
+    title: str
+    user_id: int
+    user: RelTestUserBidir | None = None
 
 
 class TestRelationshipCreation:
     """Tests for DbBuilder._create_relationships() functionality"""
 
-    # TODO: relationship configuration tests require has_many() and has_one()
-    # methods on EntityConfiguration which haven't been implemented yet.
-    # The relationship configuration API and builder methods need to be
-    # designed and implemented first.
-
-    @pytest.mark.skip(reason="has_many() and has_one() API not yet implemented")
     def test_creates_one_to_many_relationship(self) -> None:
         """One-to-many relationship should be created with correct configuration"""
-        pass
 
-    @pytest.mark.skip(reason="has_many() and has_one() API not yet implemented")
+        class TestContext(DbContext):
+            users: DbSet[RelTestUser]
+            posts: DbSet[RelTestPost]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(RelTestUser).has_key(lambda u: u.id).has_many(
+                    lambda u: u.posts
+                ).with_foreign_key(lambda p: p.user_id)
+                builder.entity(RelTestPost).has_key(lambda p: p.id)
+
+        provider = InMemoryProvider(use_async=False)
+        TestContext(provider)
+
+        # verify relationship was created
+        assert hasattr(RelTestUser, "posts")
+        posts_rel = getattr(RelTestUser, "posts")
+        assert posts_rel is not None
+
+        # verify it's a SQLAlchemy relationship object
+        from sqlalchemy.orm.relationships import _RelationshipDeclared
+
+        assert isinstance(posts_rel, _RelationshipDeclared)
+
     def test_creates_many_to_one_relationship(self) -> None:
         """Many-to-one relationship should be created with correct configuration"""
-        pass
 
-    @pytest.mark.skip(reason="has_many() and has_one() API not yet implemented")
+        @entity
+        class User:
+            id: int
+            name: str
+
+        @entity
+        class Post:
+            id: int
+            title: str
+            user_id: int
+            user: User | None = None
+
+        class TestContext(DbContext):
+            users: DbSet[User]
+            posts: DbSet[Post]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(User).has_key(lambda u: u.id)
+                builder.entity(Post).has_key(lambda p: p.id).has_one(
+                    lambda p: p.user
+                ).with_foreign_key(lambda p: p.user_id)
+
+        provider = InMemoryProvider(use_async=False)
+        TestContext(provider)
+
+        # verify relationship was created
+        assert hasattr(Post, "user")
+        user_rel = getattr(Post, "user")
+        assert user_rel is not None
+
+        # verify it's a SQLAlchemy relationship object
+        from sqlalchemy.orm.relationships import _RelationshipDeclared
+
+        assert isinstance(user_rel, _RelationshipDeclared)
+
     def test_bidirectional_relationship_with_backpopulates(self) -> None:
         """Bidirectional relationships should use back_populates"""
-        pass
+
+        class TestContext(DbContext):
+            users: DbSet[RelTestUserBidir]
+            posts: DbSet[RelTestPostBidir]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(RelTestUserBidir).has_key(lambda u: u.id).has_many(
+                    lambda u: u.posts
+                ).with_foreign_key(lambda p: p.user_id).backpopulates(lambda p: p.user)
+                builder.entity(RelTestPostBidir).has_key(lambda p: p.id).has_one(
+                    lambda p: p.user
+                ).with_foreign_key(lambda p: p.user_id).backpopulates(lambda u: u.posts)
+
+        provider = InMemoryProvider(use_async=False)
+        TestContext(provider)
+
+        # verify both relationships were created
+        assert hasattr(RelTestUserBidir, "posts")
+        assert hasattr(RelTestPostBidir, "user")
+
+        # verify relationships are SQLAlchemy relationship objects with back_populates configured
+        from sqlalchemy.orm.relationships import _RelationshipDeclared
+
+        user_posts_rel = getattr(RelTestUserBidir, "posts")
+        post_user_rel = getattr(RelTestPostBidir, "user")
+
+        assert isinstance(user_posts_rel, _RelationshipDeclared)
+        assert isinstance(post_user_rel, _RelationshipDeclared)
+
+        # verify back_populates is configured
+        assert user_posts_rel.back_populates == "user"
+        assert post_user_rel.back_populates == "posts"
 
 
 class TestBuilderFinalize:
@@ -316,7 +462,32 @@ class TestBuilderFinalize:
         assert hasattr(Post, "__table__")
         assert getattr(Post, "__table__") is not None
 
-    @pytest.mark.skip(reason="has_many() API not yet implemented")
     def test_finalize_calls_create_relationships_after_tables(self) -> None:
         """Finalize should create relationships after tables exist"""
-        pass
+
+        class TestContext(DbContext):
+            users: DbSet[RelTestUserBidir]
+            posts: DbSet[RelTestPostBidir]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(RelTestUserBidir).has_key(lambda u: u.id).has_many(
+                    lambda u: u.posts
+                ).with_foreign_key(lambda p: p.user_id)
+                builder.entity(RelTestPostBidir).has_key(lambda p: p.id).has_one(
+                    lambda p: p.user
+                ).with_foreign_key(lambda p: p.user_id)
+
+        provider = InMemoryProvider(use_async=False)
+        TestContext(provider)
+
+        # verify tables were created
+        assert hasattr(RelTestUserBidir, "__table__")
+        assert hasattr(RelTestPostBidir, "__table__")
+
+        # verify relationships were created after tables
+        assert hasattr(RelTestUserBidir, "posts")
+        assert hasattr(RelTestPostBidir, "user")
+
+        # verify foreign key column exists in Post table
+        post_table = getattr(RelTestPostBidir, "__table__")
+        assert "user_id" in [c.name for c in post_table.columns]

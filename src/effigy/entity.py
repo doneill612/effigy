@@ -11,6 +11,7 @@ class Entity(Protocol[T]):
 
     Entities are classes decorated with @entity that can be managed by a DbContext.
     The __tablename__ attribute is set by the decorator.
+    The __effigy_entity_type__ is set by the decorator.
     The __table__ attribute is set during DbContext initialization when the builder runs.
     """
 
@@ -44,11 +45,9 @@ class _EntityProxy(Generic[T]):
 
     def __init__(self, entity_type: Type[T]):
         object.__setattr__(self, "_entity_type", entity_type)
-        object.__setattr__(
-            self,
-            "_type_hints",
-            get_type_hints(entity_type) if hasattr(entity_type, "__annotations__") else {},
-        )
+        # forward references in annotations are fine since we only need field names for validation
+        type_hints = getattr(entity_type, "__annotations__", {})
+        object.__setattr__(self, "_type_hints", type_hints)
 
     def __getattribute__(self, name: str) -> Any:
         # we want to allow access to internal attributes

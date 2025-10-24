@@ -1,6 +1,6 @@
 """Shared test fixtures for effigy test suite"""
 
-from typing import Type
+from typing import Any, Type
 
 import pytest
 
@@ -76,7 +76,7 @@ def sample_post_entity() -> Type[TestPost]:
 
 
 @pytest.fixture
-def sample_entities() -> dict[str, Type]:
+def sample_entities() -> dict[str, Type[Any]]:
     """Provides both sample User and Post entities as a dictionary"""
     return {"User": TestUser, "Post": TestPost}
 

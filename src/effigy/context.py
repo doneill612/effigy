@@ -17,7 +17,7 @@ class DbContext(ABC):
 
     _configuration: ClassVar[DbContextConfiguration | None] = None
 
-    def __init__(self, provider: DatabaseProvider, **engine_options: dict[str, Any]):
+    def __init__(self, provider: DatabaseProvider, **engine_options: Any):
         connection_string = provider.get_connection_string()
         opts = provider.get_engine_options()
 
@@ -44,7 +44,7 @@ class DbContext(ABC):
 
     @classmethod
     def create(
-        cls, *, provider: DatabaseProvider | None = None, **engine_opts: dict[str, Any]
+        cls, *, provider: DatabaseProvider | None = None, **engine_opts: Any
     ) -> Self:
         final_provider = provider
         final_opts = {**engine_opts}
@@ -113,7 +113,7 @@ class AsyncDbContext(ABC):
 
     _configuration: ClassVar[DbContextConfiguration | None] = None
 
-    def __init__(self, provider: DatabaseProvider, **engine_options: dict[str, Any]):
+    def __init__(self, provider: DatabaseProvider, **engine_options: Any):
         connection_string = provider.get_connection_string()
         opts = provider.get_engine_options()
 
@@ -141,7 +141,7 @@ class AsyncDbContext(ABC):
 
     @classmethod
     def create(
-        cls, *, provider: DatabaseProvider | None = None, **engine_opts: dict[str, Any]
+        cls, *, provider: DatabaseProvider | None = None, **engine_opts: Any
     ) -> Self:
         final_provider = provider
         final_opts = {**engine_opts}
