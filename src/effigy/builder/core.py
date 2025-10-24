@@ -1,11 +1,12 @@
-from typing import Callable, Type, TypeVar, Generic, Any, get_type_hints, get_origin, Union
+from typing import Callable, Type, TypeVar, Generic, Any, cast, get_type_hints, get_origin, Union
 
 from sqlalchemy import MetaData, Table, Column, Integer, String, Boolean, Float
-from sqlalchemy.orm import InstrumentedAttribute, registry
+from sqlalchemy.orm import registry
 
 from .index import IndexConfiguration
 from .property import PropertyConfiguration
 from .relationship import RelationshipConfiguration, RelationshipType
+from ..entity import _EntityProxy
 
 T = TypeVar("T")
 
@@ -47,54 +48,47 @@ class EntityConfiguration(Generic[T]):
         self._relationships: list[RelationshipConfiguration] = []
         self._indexes: list[IndexConfiguration] = []
 
-    def property(
-        self, navigation: Callable[[Type[T]], InstrumentedAttribute[object]]
-    ) -> PropertyConfiguration[T]:
-        prop_attr = navigation(self._entity_type)
-        prop_name = prop_attr.key
+    def property(self, navigation: Callable[[T], Any]) -> PropertyConfiguration[T]:
+        proxy = _EntityProxy(self._entity_type)
+        navattr = navigation(cast(T, proxy))
+        prop_name = navattr.key
 
         if prop_name not in self._properties:
             self._properties[prop_name] = PropertyConfiguration(prop_name, self._entity_type, self)
 
         return self._properties[prop_name]
 
-    def has_key(
-        self, navigation: Callable[[Type[T]], InstrumentedAttribute[object]] | str
-    ) -> "EntityConfiguration[T]":
+    def has_key(self, navigation: Callable[[T], Any]) -> "EntityConfiguration[T]":
         """Marks a field as a primary key.
 
         Args:
-            navigation: Either a lambda function (lambda u: u.id) or a string field name ("id")
+            navigation: lambda function (lambda u: u.id) that references the attribute to make a primary key
         """
-        if isinstance(navigation, str):
-            key_name = navigation
-        else:
-            key_attr = navigation(self._entity_type)
-            key_name = key_attr.key
+        proxy = _EntityProxy(self._entity_type)
+        keyattr = navigation(cast(T, proxy))
+        keyname = keyattr.key
 
-        self._pks.append(key_name)
+        self._pks.append(keyname)
         return self
 
-    def has_one(
-        self, navigation: Callable[[Type[T]], InstrumentedAttribute[object]]
-    ) -> RelationshipConfiguration[T]:
-        nav_attr = navigation(self._entity_type)
-        nav_name = nav_attr.key
+    def has_one(self, navigation: Callable[[T], Any]) -> RelationshipConfiguration[T]:
+        proxy = _EntityProxy(self._entity_type)
+        navattr = navigation(cast(T, proxy))
+        navname = navattr.key
 
         rel_config = RelationshipConfiguration(
-            nav_name, RelationshipType.MANY_TO_ONE, self._entity_type, self
+            navname, RelationshipType.MANY_TO_ONE, self._entity_type, self
         )
         self._relationships.append(rel_config)
         return rel_config
 
-    def has_many(
-        self, navigation: Callable[[Type[T]], InstrumentedAttribute[object]]
-    ) -> RelationshipConfiguration[T]:
-        nav_attr = navigation(self._entity_type)
-        nav_name = nav_attr.key
+    def has_many(self, navigation: Callable[[T], Any]) -> RelationshipConfiguration[T]:
+        proxy = _EntityProxy(self._entity_type)
+        navattr = navigation(cast(T, proxy))
+        navname = navattr.key
 
         rel_config = RelationshipConfiguration(
-            nav_name, RelationshipType.ONE_TO_MANY, self._entity_type, self
+            navname, RelationshipType.ONE_TO_MANY, self._entity_type, self
         )
         self._relationships.append(rel_config)
         return rel_config

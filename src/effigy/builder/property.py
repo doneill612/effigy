@@ -26,9 +26,7 @@ class PropertyConfiguration(Generic[T]):
         self._unique: bool = False
         self._validators: list[Callable[[Any], bool]] = []
 
-    def property(
-        self, navigation: Callable[[Type[T]], InstrumentedAttribute[object]]
-    ) -> "PropertyConfiguration[T]":
+    def property(self, navigation: Callable[[T], Any]) -> "PropertyConfiguration[T]":
         return self._entity_configuration.property(navigation)
 
     def required(self) -> "PropertyConfiguration[T]":

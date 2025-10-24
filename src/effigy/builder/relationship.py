@@ -2,7 +2,7 @@ from typing import Any, Callable, TypeVar, Generic, Type, TYPE_CHECKING, get_typ
 from typing_extensions import Self
 from enum import Enum
 
-from sqlalchemy.orm import InstrumentedAttribute, relationship
+from sqlalchemy.orm import relationship
 
 
 if TYPE_CHECKING:
@@ -45,9 +45,7 @@ class RelationshipConfiguration(Generic[T]):
         self._lazy: str = "select"
         self._back_populates: str | None = None
 
-    def with_foreign_key(
-        self, navigation: Callable[[Type[object]], InstrumentedAttribute[object]]
-    ) -> Self:
+    def with_foreign_key(self, navigation: Callable[[Type[object]], Any]) -> Self:
         hints = get_type_hints(self._entity_type)
         navtype = hints.get(self._navigation_name)
 
@@ -62,9 +60,7 @@ class RelationshipConfiguration(Generic[T]):
 
         return self
 
-    def backpopulates(
-        self, navigation: Callable[[Type[object]], InstrumentedAttribute[object]]
-    ) -> Self:
+    def backpopulates(self, navigation: Callable[[Type[object]], Any]) -> Self:
         if not self._related_entity:
             raise ValueError("")
         backpop = navigation(self._related_entity)

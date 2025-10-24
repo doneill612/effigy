@@ -24,7 +24,7 @@ class TestTableCreation:
             products: DbSet[Product]
 
             def setup(self, builder: DbBuilder) -> None:
-                builder.entity(Product).has_key("id")
+                builder.entity(Product).has_key(lambda p: p.id)
 
         provider = InMemoryProvider(use_async=False)
         TestContext(provider)
@@ -49,7 +49,7 @@ class TestTableCreation:
             products: DbSet[Product]
 
             def setup(self, builder: DbBuilder) -> None:
-                builder.entity(Product).has_key("id")
+                builder.entity(Product).has_key(lambda p: p.id)
 
         provider = InMemoryProvider(use_async=False)
         TestContext(provider)
@@ -77,7 +77,7 @@ class TestTableCreation:
             products: DbSet[Product]
 
             def setup(self, builder: DbBuilder) -> None:
-                builder.entity(Product).has_key("id")
+                builder.entity(Product).has_key(lambda p: p.id)
 
         provider = InMemoryProvider(use_async=False)
         TestContext(provider)
@@ -104,7 +104,7 @@ class TestTableCreation:
             products: DbSet[Product]
 
             def setup(self, builder: DbBuilder) -> None:
-                builder.entity(Product).has_key("id")
+                builder.entity(Product).has_key(lambda p: p.id)
 
         provider = InMemoryProvider(use_async=False)
         TestContext(provider)
@@ -130,7 +130,9 @@ class TestTableCreation:
             order_lines: DbSet[OrderLine]
 
             def setup(self, builder: DbBuilder) -> None:
-                builder.entity(OrderLine).has_key("order_id").has_key("product_id")
+                builder.entity(OrderLine).has_key(lambda o: o.order_id).has_key(
+                    lambda o: o.product_id
+                )
 
         provider = InMemoryProvider(use_async=False)
         TestContext(provider)
@@ -159,7 +161,7 @@ class TestTableCreation:
             users: DbSet[User]
 
             def setup(self, builder: DbBuilder) -> None:
-                builder.entity(User).has_key("id")
+                builder.entity(User).has_key(lambda u: u.id)
 
         provider = InMemoryProvider(use_async=False)
         TestContext(provider)
@@ -188,7 +190,7 @@ class TestTableCreation:
             bad_entities: DbSet[BadEntity]
 
             def setup(self, builder: DbBuilder) -> None:
-                builder.entity(BadEntity).has_key("id")
+                builder.entity(BadEntity).has_key(lambda b: b.id)
 
         provider = InMemoryProvider(use_async=False)
 
@@ -226,7 +228,7 @@ class TestTableCreation:
             products: DbSet[Product]
 
             def setup(self, builder: DbBuilder) -> None:
-                builder.entity(Product).has_key("id")
+                builder.entity(Product).has_key(lambda p: p.id)
 
         provider = InMemoryProvider(use_async=False)
         TestContext(provider)
@@ -302,8 +304,8 @@ class TestBuilderFinalize:
             posts: DbSet[Post]
 
             def setup(self, builder: DbBuilder) -> None:
-                builder.entity(User).has_key("id")
-                builder.entity(Post).has_key("id")
+                builder.entity(User).has_key(lambda u: u.id)
+                builder.entity(Post).has_key(lambda p: p.id)
 
         provider = InMemoryProvider(use_async=False)
         TestContext(provider)

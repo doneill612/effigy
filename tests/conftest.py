@@ -37,7 +37,7 @@ class SampleDbContext(DbContext):
 
     def setup(self, builder: DbBuilder) -> None:
         """Configure entities with primary keys"""
-        builder.entity(TestUser).has_key("id")
+        builder.entity(TestUser).has_key(lambda u: u.id)
 
 
 class SampleAsyncDbContext(AsyncDbContext):
@@ -47,7 +47,7 @@ class SampleAsyncDbContext(AsyncDbContext):
 
     def setup(self, builder: DbBuilder) -> None:
         """Configure entities with primary keys"""
-        builder.entity(TestUser).has_key("id")
+        builder.entity(TestUser).has_key(lambda u: u.id)
 
 
 @pytest.fixture
