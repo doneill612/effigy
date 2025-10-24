@@ -1,4 +1,4 @@
-from typing import Type, TypeVar, Protocol, Any, get_origin, cast
+from typing import Generic, Type, TypeVar, Protocol, Any, get_origin, cast, get_type_hints
 from typing_extensions import dataclass_transform
 from attrs import define, field
 
@@ -22,6 +22,57 @@ class Entity(Protocol[T]):
 
     # preserve reference to the original type
     __effigy_entity_type__: Type[T]
+
+
+class _MockAttribute:
+    """Mock that mimics SQLAlchemy's InstrumentedAttribute interface."""
+
+    def __init__(self, key: str):
+        self.key = key
+
+
+class _EntityProxy(Generic[T]):
+    """Proxy object that captures attribute access for type-safe navigation lambdas.
+
+    This proxy is used during entity configuration (before SQLAlchemy mapping) to
+    enable lambda-based navigation like `lambda p: p.email` instead of string-based
+    navigation like `"email"`.
+
+    The proxy validates that accessed attributes exist as declared properties on the
+    entity type and prevents attribute mutations during navigation.
+    """
+
+    def __init__(self, entity_type: Type[T]):
+        object.__setattr__(self, "_entity_type", entity_type)
+        object.__setattr__(
+            self,
+            "_type_hints",
+            get_type_hints(entity_type) if hasattr(entity_type, "__annotations__") else {},
+        )
+
+    def __getattribute__(self, name: str) -> Any:
+        # we want to allow access to internal attributes
+        if name.startswith("_"):
+            return object.__getattribute__(self, name)
+
+        entity_type: Type[T] = object.__getattribute__(self, "_entity_type")
+        type_hints: dict[str, Any] = object.__getattribute__(self, "_type_hints")
+
+        if name not in type_hints:
+            available = ", ".join(type_hints.keys())
+            raise AttributeError(
+                f"Property '{name}' does not exist on entity {entity_type.__name__}. "
+                f"Available properties: {available or '(none)'}"
+            )
+
+        return _MockAttribute(name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        entity_type: Type[T] = object.__getattribute__(self, "_entity_type")
+        raise AttributeError(
+            f"Cannot set attribute '{name}={value}' during navigation on {entity_type.__name__}. "
+            f"Navigation lambdas should only read attributes, not modify them."
+        )
 
 
 @dataclass_transform(kw_only_default=False, field_specifiers=(field,))
