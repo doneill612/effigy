@@ -175,9 +175,8 @@ class EntityConfiguration(Generic[T]):
             prop_config = self._properties.get(field_name)
             if prop_config:
                 nullable = is_nullable and not prop_config._required
-                # TODO: expose readonly props here instead of going right at the private field
-                unique = prop_config._unique
-                default = prop_config._default
+                unique = prop_config.is_unique
+                default = prop_config.default
             else:
                 # default configuration values (assumed)
                 nullable = is_nullable and not is_primary

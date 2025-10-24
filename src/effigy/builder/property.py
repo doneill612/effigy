@@ -26,6 +26,18 @@ class PropertyConfiguration(Generic[T]):
         self._unique: bool = False
         self._validators: list[Callable[[Any], bool]] = []
 
+    @property
+    def is_unique(self) -> bool:
+        return self._unique
+
+    @property
+    def default(self) -> Any | None:
+        return self._default
+
+    @property
+    def server_default(self) -> Any | None:
+        return self._server_default
+
     def property(self, navigation: Callable[[T], Any]) -> "PropertyConfiguration[T]":
         return self._entity_configuration.property(navigation)
 
