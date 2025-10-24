@@ -243,6 +243,27 @@ class TestTableCreation:
 class TestPropertyConfiguration:
     """Tests for property configuration (unique, required, default)"""
 
+    def test_autoincrement_validation_rejects_non_optional(self) -> None:
+        """property marked as autoincrementing should be rejected if not defined as an optional"""
+
+        @entity
+        class User:
+            id: int
+            email: str
+
+        class TestContext(DbContext):
+            users: DbSet[User]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(User).has_key(lambda u: u.id, autoincrement=True)
+
+        provider = InMemoryProvider()
+        with pytest.raises(
+            TypeError,
+            match="Database-generated values require an optional type. Autoincrementing field 'id' must be typed as int | None",
+        ):
+            TestContext(provider)
+
     def test_property_unique_creates_unique_column(self) -> None:
         """property marked as unique should create unique constraint"""
 

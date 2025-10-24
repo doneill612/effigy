@@ -1,4 +1,16 @@
-from typing import Callable, Type, TypeVar, Generic, Any, cast, get_type_hints, get_origin, Union
+from types import UnionType
+from typing import (
+    Callable,
+    Type,
+    TypeVar,
+    Generic,
+    Any,
+    cast,
+    get_args,
+    get_type_hints,
+    get_origin,
+    Union,
+)
 
 from sqlalchemy import MetaData, Table, Column, Integer, String, Boolean, Float
 from sqlalchemy.orm import registry
@@ -58,18 +70,30 @@ class EntityConfiguration(Generic[T]):
 
         return self._properties[prop_name]
 
-    def has_key(self, navigation: Callable[[T], Any]) -> "EntityConfiguration[T]":
+    def has_key(
+        self, navigation: Callable[[T], Any], *, autoincrement: bool = False
+    ) -> "EntityConfiguration[T]":
         """Marks a field as a primary key.
 
         Args:
             navigation: lambda function (lambda u: u.id) that references the attribute to make a primary key
+            autoincrement: Whether or not the primary key should be treated as autoincrementing
         """
         proxy = _EntityProxy(self._entity_type)
         keyattr = navigation(cast(T, proxy))
         keyname = keyattr.key
 
         self._pks.append(keyname)
+
+        if autoincrement:
+            self._get_property_config_by_keyname(keyname).autoincrement()
         return self
+
+    def _get_property_config_by_keyname(self, keyname: str) -> PropertyConfiguration[T]:
+        # if keyname is in properties, return it - otherwise, create config
+        if keyname in self._properties:
+            return self._properties[keyname]
+        return self.property(lambda e: getattr(e, keyname))
 
     def has_one(self, navigation: Callable[[T], Any]) -> RelationshipConfiguration[T]:
         proxy = _EntityProxy(self._entity_type)
@@ -92,6 +116,24 @@ class EntityConfiguration(Generic[T]):
         )
         self._relationships.append(rel_config)
         return rel_config
+
+    def _validate_autoincrement(
+        self, field_name: str, field_type: Type, *, autoincrement: bool
+    ) -> None:
+        if not autoincrement:
+            return
+
+        origin = get_origin(field_type)
+        if origin is Union or origin is UnionType:
+            args = get_args(field_type)
+            # need to type autoincrementing primary keys as int | None
+            if type(None) in args and int in args:
+                return
+
+        raise TypeError(
+            f"Database-generated values require an optional type. "
+            f"Autoincrementing field {field_name} must be defined as int | None"
+        )
 
     def _create_table(self, metadata: MetaData) -> None:
         """Creates a SQLAlchemy Table and attaches it to the entity class.
@@ -177,12 +219,15 @@ class EntityConfiguration(Generic[T]):
                 nullable = is_nullable and not prop_config._required
                 unique = prop_config.is_unique
                 default = prop_config.default
+                autoincrement = prop_config.is_autoincrement
             else:
                 # default configuration values (assumed)
                 nullable = is_nullable and not is_primary
                 unique = False
                 default = None
+                autoincrement = False
 
+            self._validate_autoincrement(field_name, field_type, autoincrement=autoincrement)
             # TODO: autoincrement support
             col = Column(
                 field_name,
@@ -191,6 +236,7 @@ class EntityConfiguration(Generic[T]):
                 nullable=nullable,
                 unique=unique,
                 default=default,
+                autoincrement=autoincrement if autoincrement else "auto",
             )
             columns.append(col)
 

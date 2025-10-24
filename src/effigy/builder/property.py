@@ -20,6 +20,7 @@ class PropertyConfiguration(Generic[T]):
         self._entity_type = entity_type
         self._entity_configuration = entity_configuration
         self._required: bool = False
+        self._autoincrement: bool = False
         self._max_length: int | None = None
         self._default: Any | None = None
         self._server_default: Any | None = None
@@ -29,6 +30,10 @@ class PropertyConfiguration(Generic[T]):
     @property
     def is_unique(self) -> bool:
         return self._unique
+
+    @property
+    def is_autoincrement(self) -> bool:
+        return self._autoincrement
 
     @property
     def default(self) -> Any | None:
@@ -63,4 +68,8 @@ class PropertyConfiguration(Generic[T]):
 
     def with_server_default(self, server_default: Any) -> Self:
         self._server_default = server_default
+        return self
+
+    def autoincrement(self) -> Self:
+        self._autoincrement = True
         return self
