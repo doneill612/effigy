@@ -1,4 +1,4 @@
-from typing import Type, TypeVar, Generic, Callable, Any, TYPE_CHECKING
+from typing import AsyncIterator, Iterator, Type, TypeVar, Generic, Callable, Any, TYPE_CHECKING
 from sqlalchemy import ColumnElement, select
 
 
@@ -53,7 +53,7 @@ class DbSet(Generic[T]):
     def to_list(self) -> list[T]:
         return self._context.session.query(self._entity_type).all()
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[T]:
         return iter(self.to_list())
 
 
@@ -100,10 +100,10 @@ class AsyncDbSet(Generic[T]):
         exc = await self._context.session.execute(select(self._entity_type))
         return list(exc.scalars())
 
-    async def __aiter__(self):
+    async def __aiter__(self) -> AsyncIterator[T]:
         return self._async_iterator()
 
-    async def _async_iterator(self):
+    async def _async_iterator(self) -> AsyncIterator[T]:
         entities = await self.to_list()
         for entity in entities:
             yield entity

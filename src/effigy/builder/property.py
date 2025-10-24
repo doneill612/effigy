@@ -1,6 +1,6 @@
 from typing import Generic, Type, TypeVar, Any, Callable, TYPE_CHECKING
+from typing_extensions import Self
 
-from sqlalchemy.orm import InstrumentedAttribute
 
 if TYPE_CHECKING:
     from .core import EntityConfiguration
@@ -29,26 +29,26 @@ class PropertyConfiguration(Generic[T]):
     def property(self, navigation: Callable[[T], Any]) -> "PropertyConfiguration[T]":
         return self._entity_configuration.property(navigation)
 
-    def required(self) -> "PropertyConfiguration[T]":
+    def required(self) -> Self:
         self._required = True
         return self
 
-    def unique(self) -> "PropertyConfiguration[T]":
+    def unique(self) -> Self:
         self._unique = True
         return self
 
-    def max_len(self, max_len: int) -> "PropertyConfiguration[T]":
+    def max_len(self, max_len: int) -> Self:
         self._max_length = max_len
         return self
 
-    def validate_with(self, validator: Callable[[Any], bool]):
+    def validate_with(self, validator: Callable[[Any], bool]) -> Self:
         self._validators.append(validator)
         return self
 
-    def with_default(self, default: Any) -> "PropertyConfiguration[T]":
+    def with_default(self, default: Any) -> Self:
         self._default = default
         return self
 
-    def with_server_default(self, server_default: Any) -> "PropertyConfiguration[T]":
+    def with_server_default(self, server_default: Any) -> Self:
         self._server_default = server_default
         return self

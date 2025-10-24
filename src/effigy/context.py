@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import ClassVar, get_origin, get_args
+from typing import ClassVar, get_origin, get_args, Any
 from typing_extensions import Self
 
 from sqlalchemy import MetaData, create_engine
@@ -17,7 +17,7 @@ class DbContext(ABC):
 
     _configuration: ClassVar[DbContextConfiguration | None] = None
 
-    def __init__(self, provider: DatabaseProvider, **engine_options):
+    def __init__(self, provider: DatabaseProvider, **engine_options: dict[str, Any]):
         connection_string = provider.get_connection_string()
         opts = provider.get_engine_options()
 
@@ -28,7 +28,7 @@ class DbContext(ABC):
         self._init_dbsets()
 
     @abstractmethod
-    def setup(self, builder) -> None: ...
+    def setup(self, builder: DbBuilder) -> None: ...
 
     @property
     def session(self) -> Session:
@@ -43,7 +43,9 @@ class DbContext(ABC):
         return config
 
     @classmethod
-    def create(cls, *, provider: DatabaseProvider | None = None, **engine_opts) -> Self:
+    def create(
+        cls, *, provider: DatabaseProvider | None = None, **engine_opts: dict[str, Any]
+    ) -> Self:
         final_provider = provider
         final_opts = {**engine_opts}
         if cls._configuration:
@@ -96,7 +98,7 @@ class DbContext(ABC):
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: type, exc_val: Any, exc_tb: Any):
         if exc_type is None:
             self.save_changes()
         else:
@@ -109,7 +111,7 @@ class AsyncDbContext(ABC):
 
     _configuration: ClassVar[DbContextConfiguration | None] = None
 
-    def __init__(self, provider: DatabaseProvider, **engine_options):
+    def __init__(self, provider: DatabaseProvider, **engine_options: dict[str, Any]):
         connection_string = provider.get_connection_string()
         opts = provider.get_engine_options()
 
@@ -127,7 +129,7 @@ class AsyncDbContext(ABC):
         return self._session
 
     @abstractmethod
-    def setup(self, builder) -> None: ...
+    def setup(self, builder: DbBuilder) -> None: ...
 
     @classmethod
     def configure(cls) -> DbContextConfiguration:
@@ -136,7 +138,9 @@ class AsyncDbContext(ABC):
         return config
 
     @classmethod
-    def create(cls, *, provider: DatabaseProvider | None = None, **engine_opts) -> Self:
+    def create(
+        cls, *, provider: DatabaseProvider | None = None, **engine_opts: dict[str, Any]
+    ) -> Self:
         final_provider = provider
         final_opts = {**engine_opts}
         if cls._configuration:

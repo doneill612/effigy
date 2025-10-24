@@ -1,5 +1,4 @@
-from typing import Literal
-from dataclasses import dataclass
+from typing import Any, Literal
 
 from .base import DatabaseProvider
 from .memory import InMemoryProvider
@@ -7,7 +6,7 @@ from .memory import InMemoryProvider
 ProviderType = Literal["inmemory", "postgres", "mysql"]
 
 
-def create_provider(provider_type: ProviderType, **config) -> DatabaseProvider:
+def create_provider(provider_type: ProviderType, **config: Any) -> DatabaseProvider:
     providers: dict[ProviderType, type[DatabaseProvider]] = {
         "inmemory": InMemoryProvider,
     }
