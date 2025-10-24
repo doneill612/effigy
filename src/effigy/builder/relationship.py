@@ -1,4 +1,5 @@
 from typing import Any, Callable, TypeVar, Generic, Type, TYPE_CHECKING, get_type_hints
+from typing_extensions import Self
 from enum import Enum
 
 from sqlalchemy.orm import InstrumentedAttribute, relationship
@@ -46,7 +47,7 @@ class RelationshipConfiguration(Generic[T]):
 
     def with_foreign_key(
         self, navigation: Callable[[Type[object]], InstrumentedAttribute[object]]
-    ) -> "RelationshipConfiguration[T]":
+    ) -> Self:
         hints = get_type_hints(self._entity_type)
         navtype = hints.get(self._navigation_name)
 
@@ -63,7 +64,7 @@ class RelationshipConfiguration(Generic[T]):
 
     def backpopulates(
         self, navigation: Callable[[Type[object]], InstrumentedAttribute[object]]
-    ) -> "RelationshipConfiguration[T]":
+    ) -> Self:
         if not self._related_entity:
             raise ValueError("")
         backpop = navigation(self._related_entity)
@@ -71,11 +72,11 @@ class RelationshipConfiguration(Generic[T]):
         self._back_populates = backpop.key
         return self
 
-    def cascade(self, cascade: str) -> "RelationshipConfiguration[T]":
+    def cascade(self, cascade: str) -> Self:
         self._cascade = cascade
         return self
 
-    def with_lazy_loading(self, lazy: str = "select") -> "RelationshipConfiguration[T]":
+    def with_lazy_loading(self, lazy: str = "select") -> Self:
         self._lazy = lazy
         return self
 

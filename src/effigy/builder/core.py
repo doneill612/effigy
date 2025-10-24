@@ -5,7 +5,7 @@ from sqlalchemy.orm import InstrumentedAttribute, registry
 
 from .index import IndexConfiguration
 from .property import PropertyConfiguration
-from .relationship import RelationshipConfiguration
+from .relationship import RelationshipConfiguration, RelationshipType
 
 T = TypeVar("T")
 
@@ -74,6 +74,30 @@ class EntityConfiguration(Generic[T]):
 
         self._pks.append(key_name)
         return self
+
+    def has_one(
+        self, navigation: Callable[[Type[T]], InstrumentedAttribute[object]]
+    ) -> RelationshipConfiguration[T]:
+        nav_attr = navigation(self._entity_type)
+        nav_name = nav_attr.key
+
+        rel_config = RelationshipConfiguration(
+            nav_name, RelationshipType.MANY_TO_ONE, self._entity_type, self
+        )
+        self._relationships.append(rel_config)
+        return rel_config
+
+    def has_many(
+        self, navigation: Callable[[Type[T]], InstrumentedAttribute[object]]
+    ) -> RelationshipConfiguration[T]:
+        nav_attr = navigation(self._entity_type)
+        nav_name = nav_attr.key
+
+        rel_config = RelationshipConfiguration(
+            nav_name, RelationshipType.ONE_TO_MANY, self._entity_type, self
+        )
+        self._relationships.append(rel_config)
+        return rel_config
 
     def _create_table(self, metadata: MetaData) -> None:
         """Creates a SQLAlchemy Table and attaches it to the entity class.
