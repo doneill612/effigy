@@ -3,7 +3,7 @@ from typing_extensions import Self
 
 
 if TYPE_CHECKING:
-    from .core import EntityConfiguration
+    from .core import _EntityConfiguration
 
 
 T = TypeVar("T")
@@ -14,7 +14,7 @@ class PropertyConfiguration(Generic[T]):
         self,
         property_name: str,
         entity_type: Type[T],
-        entity_configuration: "EntityConfiguration[T]",
+        entity_configuration: "_EntityConfiguration[T]",
     ):
         self._property_name = property_name
         self._entity_type = entity_type

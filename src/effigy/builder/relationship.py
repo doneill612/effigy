@@ -7,7 +7,7 @@ from sqlalchemy.orm import relationship
 from ..entity import _EntityProxy
 
 if TYPE_CHECKING:
-    from .core import EntityConfiguration
+    from .core import _EntityConfiguration
 
 
 T = TypeVar("T")
@@ -25,7 +25,7 @@ class RelationshipConfiguration(Generic[T]):
         navigation_name: str,
         relationship_type: RelationshipType | str,
         entity_type: Type[T],
-        entity_config: "EntityConfiguration[T]",
+        entity_config: "_EntityConfiguration[T]",
     ):
         self._navigation_name = navigation_name
         self._relationship_type = (

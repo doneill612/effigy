@@ -36,21 +36,21 @@ class DbBuilder:
 
     def __init__(self, metadata: MetaData):
         self._metadata = metadata
-        self._entity_configs: dict[Type[Any], EntityConfiguration[Any]] = {}
+        self._entity_configs: dict[Type[Any], _EntityConfiguration[Any]] = {}
 
-    def entity(self, entity_type: Type[T]) -> "EntityConfiguration[T]":
+    def entity(self, entity_type: Type[T]) -> "_EntityConfiguration[T]":
         if entity_type not in self._entity_configs:
-            self._entity_configs[entity_type] = EntityConfiguration(entity_type, self)
+            self._entity_configs[entity_type] = _EntityConfiguration(entity_type, self)
         return self._entity_configs[entity_type]
 
-    def finalize(self) -> None:
+    def _finalize(self) -> None:
         for config in self._entity_configs.values():
             config._create_table(self._metadata)
         for config in self._entity_configs.values():
             config._create_relationships()
 
 
-class EntityConfiguration(Generic[T]):
+class _EntityConfiguration(Generic[T]):
 
     def __init__(self, entity_type: type[T], builder: DbBuilder):
         self._entity_type = entity_type
@@ -72,7 +72,7 @@ class EntityConfiguration(Generic[T]):
 
     def has_key(
         self, navigation: Callable[[T], Any], *, autoincrement: bool = False
-    ) -> "EntityConfiguration[T]":
+    ) -> "_EntityConfiguration[T]":
         """Marks a field as a primary key.
 
         Args:

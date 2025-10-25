@@ -62,7 +62,7 @@ class DbContext(ABC):
 
         self.setup(builder)
 
-        builder.finalize()
+        builder._finalize()
 
         metadata.create_all(self._engine, checkfirst=True)
 
@@ -160,7 +160,7 @@ class AsyncDbContext(ABC):
 
         self.setup(builder)
 
-        builder.finalize()
+        builder._finalize()
 
         for name, annotation in self.__annotations__.items():
             if get_origin(annotation) is AsyncDbSet:
