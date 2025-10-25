@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import ClassVar, get_origin, get_args, Any
+from typing import get_origin, get_args, Any
 from typing_extensions import Self
 
 from sqlalchemy import MetaData, create_engine
@@ -8,20 +8,16 @@ from sqlalchemy.orm import sessionmaker, Session
 
 from .builder.core import DbBuilder
 from .dbset import AsyncDbSet, DbSet
-from .configuration import DbContextConfiguration
 from .provider.base import DatabaseProvider
 
 
 class DbContext(ABC):
     """Synchronous database context"""
 
-    _configuration: ClassVar[DbContextConfiguration | None] = None
-
-    def __init__(self, provider: DatabaseProvider, **engine_options: Any):
+    def __init__(self, provider: DatabaseProvider[Any]):
         connection_string = provider.get_connection_string()
         opts = provider.get_engine_options()
 
-        opts = {**opts, **engine_options}
         self._engine = create_engine(connection_string, **opts)
         self._session_factory = sessionmaker(bind=self._engine)
         self._session: Session | None = None
@@ -35,26 +31,6 @@ class DbContext(ABC):
         if not self._session:
             self._session = self._session_factory()
         return self._session
-
-    @classmethod
-    def configure(cls) -> DbContextConfiguration:
-        config = DbContextConfiguration()
-        cls._configuration = config
-        return config
-
-    @classmethod
-    def create(cls, *, provider: DatabaseProvider | None = None, **engine_opts: Any) -> Self:
-        final_provider = provider
-        final_opts = {**engine_opts}
-        if cls._configuration:
-            config = cls._configuration.build()
-            if final_provider is None:
-                final_provider = config["provider"]
-            final_opts = {**config["engine_opts"], **final_opts}
-
-        if final_provider is None:
-            raise ValueError(f"No database provider configured for {cls.__name__}.")
-        return cls(final_provider, **final_opts)
 
     def _init_dbsets(self) -> None:
         metadata = MetaData()
@@ -82,9 +58,7 @@ class DbContext(ABC):
             session = self._get_session()
             session.flush()
             # capture counts before commit clears them
-            change_count = (
-                len(session.dirty) + len(session.new) + len(session.deleted)
-            )
+            change_count = len(session.dirty) + len(session.new) + len(session.deleted)
             session.commit()
             return change_count
         except Exception as e:
@@ -112,13 +86,9 @@ class DbContext(ABC):
 class AsyncDbContext(ABC):
     """Asynchronous database context"""
 
-    _configuration: ClassVar[DbContextConfiguration | None] = None
-
-    def __init__(self, provider: DatabaseProvider, **engine_options: Any):
+    def __init__(self, provider: DatabaseProvider[Any]):
         connection_string = provider.get_connection_string()
         opts = provider.get_engine_options()
-
-        opts = {**opts, **engine_options}
 
         self._engine = create_async_engine(connection_string, **opts)
         self._session_factory = async_sessionmaker(bind=self._engine, class_=AsyncSession)
@@ -133,26 +103,6 @@ class AsyncDbContext(ABC):
 
     @abstractmethod
     def setup(self, builder: DbBuilder) -> None: ...
-
-    @classmethod
-    def configure(cls) -> DbContextConfiguration:
-        config = DbContextConfiguration()
-        cls._configuration = config
-        return config
-
-    @classmethod
-    def create(cls, *, provider: DatabaseProvider | None = None, **engine_opts: Any) -> Self:
-        final_provider = provider
-        final_opts = {**engine_opts}
-        if cls._configuration:
-            config = cls._configuration.build()
-            if final_provider is None:
-                final_provider = config["provider"]
-            final_opts = {**config["engine_opts"], **final_opts}
-
-        if final_provider is None:
-            raise ValueError(f"No database provider configured for {cls.__name__}.")
-        return cls(final_provider, **final_opts)
 
     def _init_dbsets(self) -> MetaData:
         metadata = MetaData()
@@ -180,9 +130,7 @@ class AsyncDbContext(ABC):
             session = self._get_session()
             await session.flush()
             # capture counts before commit clears them
-            change_count = (
-                len(session.dirty) + len(session.new) + len(session.deleted)
-            )
+            change_count = len(session.dirty) + len(session.new) + len(session.deleted)
             await session.commit()
             return change_count
         except Exception as e:

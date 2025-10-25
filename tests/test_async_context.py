@@ -17,17 +17,6 @@ class TestAsyncDbContextInitialization:
         assert hasattr(async_db_context, "_engine")
         assert hasattr(async_db_context, "_session_factory")
 
-    @pytest.mark.asyncio
-    async def test_initialization_merges_engine_options(
-        self, async_in_memory_provider: InMemoryProvider
-    ) -> None:
-        """AsyncDbContext initialization merges provider options with explicit options"""
-
-        context = SampleAsyncDbContext(async_in_memory_provider, echo=True)
-        try:
-            assert context is not None
-        finally:
-            await context.dispose()
 
     def test_init_dbsets_discovers_async_dbset_attributes(
         self, async_db_context: SampleAsyncDbContext
@@ -37,90 +26,6 @@ class TestAsyncDbContextInitialization:
         from effigy.dbset import AsyncDbSet
 
         assert isinstance(async_db_context.users, AsyncDbSet)
-
-
-class TestAsyncDbContextConfiguration:
-    """Tests for AsyncDbContext configuration API"""
-
-    def test_configure_returns_configuration(
-        self, async_db_context_class: Type[SampleAsyncDbContext]
-    ) -> None:
-        """configure() returns DbContextConfiguration instance"""
-        from effigy.configuration import DbContextConfiguration
-
-        config = async_db_context_class.configure()
-
-        assert isinstance(config, DbContextConfiguration)
-
-    def test_configure_stores_configuration(
-        self, async_db_context_class: Type[SampleAsyncDbContext]
-    ) -> None:
-        """configure() stores configuration on class"""
-        config = async_db_context_class.configure()
-
-        assert async_db_context_class._configuration is config
-
-    @pytest.mark.asyncio
-    async def test_create_with_configured_provider(
-        self,
-        async_db_context_class: Type[SampleAsyncDbContext],
-        async_in_memory_provider: InMemoryProvider,
-    ) -> None:
-        """create() uses configured provider"""
-
-        async_db_context_class.configure().with_provider(async_in_memory_provider)
-
-        context = async_db_context_class.create()
-        try:
-            assert context is not None
-            assert isinstance(context, SampleAsyncDbContext)
-        finally:
-            await context.dispose()
-
-    @pytest.mark.asyncio
-    async def test_create_with_explicit_provider_override(
-        self,
-        async_db_context_class: Type[SampleAsyncDbContext],
-        async_in_memory_provider: InMemoryProvider,
-    ) -> None:
-        """create() explicit provider overrides configured provider"""
-
-        other_provider = InMemoryProvider(use_async=True)
-        async_db_context_class.configure().with_provider(other_provider)
-
-        context = async_db_context_class.create(provider=async_in_memory_provider)
-        try:
-            assert context is not None
-            assert isinstance(context, SampleAsyncDbContext)
-        finally:
-            await context.dispose()
-
-    def test_create_raises_value_error_when_no_provider(
-        self, async_db_context_class: Type[SampleAsyncDbContext]
-    ) -> None:
-        """create() raises ValueError when no provider configured"""
-        async_db_context_class._configuration = None
-
-        with pytest.raises(ValueError, match="No database provider configured"):
-            async_db_context_class.create()
-
-    @pytest.mark.asyncio
-    async def test_create_merges_engine_options(
-        self,
-        async_db_context_class: Type[SampleAsyncDbContext],
-        async_in_memory_provider: InMemoryProvider,
-    ) -> None:
-
-        async_db_context_class.configure().with_provider(async_in_memory_provider).with_engine_opts(
-            echo=False
-        )
-
-        context = async_db_context_class.create(echo=True)
-        try:
-            assert context is not None
-            assert isinstance(context, SampleAsyncDbContext)
-        finally:
-            await context.dispose()
 
 
 class TestAsyncDbContextSession:

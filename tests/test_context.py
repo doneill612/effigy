@@ -17,15 +17,6 @@ class TestDbContextInitialization:
         assert hasattr(db_context, "_engine")
         assert hasattr(db_context, "_session_factory")
 
-    def test_initialization_merges_engine_options(
-        self, in_memory_provider: InMemoryProvider
-    ) -> None:
-        """DbContext initialization merges provider options with explicit options"""
-        context = SampleDbContext(in_memory_provider, echo=True)
-        try:
-            assert context is not None
-        finally:
-            context.dispose()
 
     def test_init_dbsets_discovers_dbset_attributes(self, db_context: SampleDbContext) -> None:
         """_init_dbsets discovers and initializes DbSet attributes"""
@@ -33,73 +24,6 @@ class TestDbContextInitialization:
         from effigy.dbset import DbSet
 
         assert isinstance(db_context.users, DbSet)
-
-
-class TestDbContextConfiguration:
-    """Tests for DbContext configuration API"""
-
-    def test_configure_returns_configuration(self, db_context_class: Type[SampleDbContext]) -> None:
-        """configure() returns DbContextConfiguration instance"""
-        from effigy.configuration import DbContextConfiguration
-
-        config = db_context_class.configure()
-
-        assert isinstance(config, DbContextConfiguration)
-
-    def test_configure_stores_configuration(self, db_context_class: Type[SampleDbContext]) -> None:
-        """configure() stores configuration on class"""
-        config = db_context_class.configure()
-
-        assert db_context_class._configuration is config
-
-    def test_create_with_configured_provider(
-        self, db_context_class: Type[SampleDbContext], in_memory_provider: InMemoryProvider
-    ) -> None:
-        """create() uses configured provider"""
-        db_context_class.configure().with_provider(in_memory_provider)
-
-        context = db_context_class.create()
-        try:
-            assert context is not None
-            assert isinstance(context, SampleDbContext)
-        finally:
-            context.dispose()
-
-    def test_create_with_explicit_provider_override(
-        self, db_context_class: Type[SampleDbContext], in_memory_provider: InMemoryProvider
-    ) -> None:
-        """create() explicit provider overrides configured provider"""
-        other_provider = InMemoryProvider()
-        db_context_class.configure().with_provider(other_provider)
-
-        context = db_context_class.create(provider=in_memory_provider)
-        try:
-            assert context is not None
-            assert isinstance(context, SampleDbContext)
-        finally:
-            context.dispose()
-
-    def test_create_raises_value_error_when_no_provider(
-        self, db_context_class: Type[SampleDbContext]
-    ) -> None:
-        """create() raises ValueError when no provider configured"""
-        db_context_class._configuration = None
-
-        with pytest.raises(ValueError, match="No database provider configured"):
-            db_context_class.create()
-
-    def test_create_merges_engine_options(
-        self, db_context_class: Type[SampleDbContext], in_memory_provider: InMemoryProvider
-    ) -> None:
-        """create() merges configured engine options with explicit options"""
-        db_context_class.configure().with_provider(in_memory_provider).with_engine_opts(echo=False)
-
-        context = db_context_class.create(echo=True)
-        try:
-            assert context is not None
-            assert isinstance(context, SampleDbContext)
-        finally:
-            context.dispose()
 
 
 class TestDbContextSession:

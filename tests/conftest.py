@@ -8,7 +8,7 @@ from effigy.builder.core import DbBuilder
 from effigy.context import AsyncDbContext, DbContext
 from effigy.dbset import AsyncDbSet, DbSet
 from effigy.entity import entity
-from effigy.provider.memory import InMemoryProvider
+from effigy.provider.memory import InMemoryProvider, InMemoryEngineOptions
 
 
 @entity
@@ -53,13 +53,13 @@ class SampleAsyncDbContext(AsyncDbContext):
 @pytest.fixture
 def in_memory_provider() -> InMemoryProvider:
     """Provides a synchronous in-memory database provider for testing"""
-    return InMemoryProvider(use_async=False)
+    return InMemoryProvider(InMemoryEngineOptions(use_async=False))
 
 
 @pytest.fixture
 def async_in_memory_provider() -> InMemoryProvider:
     """Provides an asynchronous in-memory database provider for testing"""
-    return InMemoryProvider(use_async=True)
+    return InMemoryProvider(InMemoryEngineOptions(use_async=True))
 
 
 # maintain these for backward compat
@@ -93,12 +93,13 @@ def db_context(in_memory_provider: InMemoryProvider) -> Any:
 def async_db_context(async_in_memory_provider: InMemoryProvider, request: Any) -> Any:
     """Provides an initialized asynchronous AsyncDbContext instance with automatic cleanup"""
     import asyncio
+
     ctx = SampleAsyncDbContext(async_in_memory_provider)
     yield ctx
     # Cleanup - try to use event loop fixture if available, otherwise create new one
     try:
         # Try to get event loop fixture from pytest-asyncio (available in async tests)
-        loop = request.getfixturevalue('event_loop')
+        loop = request.getfixturevalue("event_loop")
         loop.run_until_complete(ctx.dispose())
     except Exception:
         # Fall back to creating a new event loop for cleanup

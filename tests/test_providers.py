@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from effigy.provider.base import DatabaseProvider
-from effigy.provider.memory import InMemoryProvider
+from effigy.provider.memory import InMemoryProvider, InMemoryEngineOptions
 
 
 class TestDatabaseProviderProtocol:
@@ -32,18 +32,18 @@ class TestInMemoryProviderConfig(ProviderConfigTestBase):
 
     def test_provider_conforms_to_protocol(self) -> None:
         """InMemoryProvider implements DatabaseProvider protocol"""
-        provider = InMemoryProvider()
+        provider = InMemoryProvider(InMemoryEngineOptions())
         assert hasattr(provider, "get_engine_options")
         assert hasattr(provider, "get_connection_string")
 
     def test_provider_connection_string_sync(self) -> None:
         """InMemoryProvider returns correct sync SQLite connection string"""
-        provider = InMemoryProvider()
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         assert provider.get_connection_string() == "sqlite:///:memory:"
 
     def test_provider_connection_string_async(self) -> None:
         """InMemoryProvider returns correct async SQLite connection string with aiosqlite driver"""
-        provider = InMemoryProvider(use_async=True)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=True))
         assert provider.get_connection_string() == "sqlite+aiosqlite:///:memory:"
 
     def test_provider_engine_options_sync(self) -> None:
@@ -63,5 +63,5 @@ class TestInMemoryProviderConfig(ProviderConfigTestBase):
 
     def _get_options(self, use_async: bool) -> dict[str, Any]:
         """Helper method to get engine options for testing"""
-        provider = InMemoryProvider(use_async=use_async)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=use_async))
         return provider.get_engine_options()

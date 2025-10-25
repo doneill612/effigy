@@ -16,7 +16,6 @@ class MySqlEngineOptions(BaseEngineOptions):
 
     use_async: bool = Field(default=False)
 
-
     charset: str = Field(default="utf8mb4")
     use_unicode: bool = Field(default=True)
 
@@ -32,6 +31,7 @@ class MySqlEngineOptions(BaseEngineOptions):
         opts["connect_args"] = connect_args
         return opts
 
+
 class MySqlProvider(DatabaseProvider[MySqlEngineOptions]):
 
     def get_connection_string(self) -> str:
@@ -39,6 +39,4 @@ class MySqlProvider(DatabaseProvider[MySqlEngineOptions]):
         pw = quote_plus(self._opt.password) if self._opt.password else ""
         auth = f"{self._opt.username}:{pw}@" if pw else f"{self._opt.username}"
 
-        return (
-            f"mysql+{driver}://{auth}{self._opt.host}:{self._opt.port}/{self._opt.database}"
-        ) 
+        return f"mysql+{driver}://{auth}{self._opt.host}:{self._opt.port}/{self._opt.database}"

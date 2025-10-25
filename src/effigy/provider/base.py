@@ -3,15 +3,16 @@ from typing import Protocol, Any, TypeVar
 from pydantic import BaseModel, ConfigDict, Field
 
 
-T = TypeVar("T", bound="BaseEngineOptions")
+E = TypeVar("E", bound="BaseEngineOptions")
 
 
 # TODO: mypy says it expects invariant TypeVar, linter says it expects covariant...
 # figure that out.
-class DatabaseProvider(Protocol[T]):  # type: ignore[reportInvalidTypeVarUse]
-    _opt: T
+class DatabaseProvider(Protocol[E]):
 
-    def __init__(self, options: T):
+    _opt: E
+
+    def __init__(self, options: E):
         self._opt = options
 
     def get_connection_string(self) -> str:

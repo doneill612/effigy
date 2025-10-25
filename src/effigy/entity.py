@@ -9,10 +9,10 @@ TEntity = TypeVar("TEntity", bound="Entity[Any]")
 class Entity(Protocol[T]):
     """Protocol for effigy entity classes.
 
-    Entities are classes decorated with @entity that can be managed by a DbContext.
-    The __tablename__ attribute is set by the decorator.
-    The __effigy_entity_type__ is set by the decorator.
-    The __table__ attribute is set during DbContext initialization when the builder runs.
+    Entities are classes decorated with `@entity` that can be managed by a DbContext.
+    The `__tablename__` attribute is set by the decorator.
+    The `__effigy_entity_type__` is set by the decorator.
+    The `__table__` attribute is set during DbContext initialization when the builder runs.
     """
 
     # set by the @entity decorator

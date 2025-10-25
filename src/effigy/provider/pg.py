@@ -37,6 +37,7 @@ class PostgresEngineOptions(BaseEngineOptions):
 
         return opts
 
+
 class PostgresProvider(DatabaseProvider[PostgresEngineOptions]):
 
     def get_connection_string(self) -> str:
@@ -45,7 +46,4 @@ class PostgresProvider(DatabaseProvider[PostgresEngineOptions]):
         pw = quote_plus(self._opt.password) if self._opt.password else ""
         auth = f"{self._opt.username}:{pw}@" if pw else f"{self._opt.username}"
 
-        return (
-            f"postgresql+{driver}://{auth}{self._opt.host}:{self._opt.port}/{self._opt.database}"
-        )
-
+        return f"postgresql+{driver}://{auth}{self._opt.host}:{self._opt.port}/{self._opt.database}"

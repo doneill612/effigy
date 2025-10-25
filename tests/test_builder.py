@@ -6,7 +6,7 @@ from effigy.builder.core import DbBuilder
 from effigy.context import DbContext
 from effigy.dbset import DbSet
 from effigy.entity import entity
-from effigy.provider.memory import InMemoryProvider
+from effigy.provider.memory import InMemoryProvider, InMemoryEngineOptions
 
 
 class TestTableCreation:
@@ -26,7 +26,7 @@ class TestTableCreation:
             def setup(self, builder: DbBuilder) -> None:
                 builder.entity(Product).has_key(lambda p: p.id)
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
         try:
             # verify table was created with correct name
@@ -53,7 +53,7 @@ class TestTableCreation:
             def setup(self, builder: DbBuilder) -> None:
                 builder.entity(Product).has_key(lambda p: p.id)
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
         try:
             assert hasattr(Product, "__table__")
@@ -83,7 +83,7 @@ class TestTableCreation:
             def setup(self, builder: DbBuilder) -> None:
                 builder.entity(Product).has_key(lambda p: p.id)
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
         try:
             assert hasattr(Product, "__table__")
@@ -112,7 +112,7 @@ class TestTableCreation:
             def setup(self, builder: DbBuilder) -> None:
                 builder.entity(Product).has_key(lambda p: p.id)
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
         try:
             assert hasattr(Product, "__table__")
@@ -142,7 +142,7 @@ class TestTableCreation:
                     lambda o: o.product_id
                 )
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
         try:
             assert hasattr(OrderLine, "__table__")
@@ -173,7 +173,7 @@ class TestTableCreation:
             def setup(self, builder: DbBuilder) -> None:
                 builder.entity(User).has_key(lambda u: u.id)
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
         try:
             assert hasattr(User, "__table__")
@@ -204,7 +204,7 @@ class TestTableCreation:
             def setup(self, builder: DbBuilder) -> None:
                 builder.entity(BadEntity).has_key(lambda b: b.id)
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
 
         with pytest.raises(TypeError, match="unsupported union type"):
             TestContext(provider)
@@ -223,7 +223,7 @@ class TestTableCreation:
                 # intentionally not calling has_key
                 builder.entity(NoPrimaryKey)
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
 
         with pytest.raises(ValueError, match="must have at least one primary key"):
             TestContext(provider)
@@ -242,7 +242,7 @@ class TestTableCreation:
             def setup(self, builder: DbBuilder) -> None:
                 builder.entity(Product).has_key(lambda p: p.id)
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
         try:
             # verify mapper was created
@@ -271,7 +271,7 @@ class TestPropertyConfiguration:
             def setup(self, builder: DbBuilder) -> None:
                 builder.entity(User).has_key(lambda u: u.id, autoincrement=True)
 
-        provider = InMemoryProvider()
+        provider = InMemoryProvider(InMemoryEngineOptions())
         with pytest.raises(
             TypeError,
             match="Database-generated values require an optional type. Autoincrementing field 'id' must be typed as int | None",
@@ -292,7 +292,7 @@ class TestPropertyConfiguration:
             def setup(self, builder: DbBuilder) -> None:
                 builder.entity(User).has_key(lambda u: u.id).property(lambda u: u.email).unique()
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
         try:
             assert hasattr(User, "__table__")
@@ -321,7 +321,7 @@ class TestPropertyConfiguration:
                     lambda p: p.active
                 ).with_default(True)
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
         try:
             assert hasattr(Product, "__table__")
@@ -381,7 +381,7 @@ class TestRelationshipCreation:
                 ).with_foreign_key(lambda p: p.user_id)
                 builder.entity(RelTestPost).has_key(lambda p: p.id)
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
         try:
             # verify relationship was created
@@ -421,7 +421,7 @@ class TestRelationshipCreation:
                     lambda p: p.user
                 ).with_foreign_key(lambda p: p.user_id)
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
         try:
             # verify relationship was created
@@ -451,7 +451,7 @@ class TestRelationshipCreation:
                     lambda p: p.user
                 ).with_foreign_key(lambda p: p.user_id).backpopulates(lambda u: u.posts)
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
         try:
             # verify both relationships were created
@@ -498,7 +498,7 @@ class TestBuilderFinalize:
                 builder.entity(User).has_key(lambda u: u.id)
                 builder.entity(Post).has_key(lambda p: p.id)
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
         try:
             # verify both tables were created
@@ -524,7 +524,7 @@ class TestBuilderFinalize:
                     lambda p: p.user
                 ).with_foreign_key(lambda p: p.user_id)
 
-        provider = InMemoryProvider(use_async=False)
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
         try:
             # verify tables were created
