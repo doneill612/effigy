@@ -2,6 +2,8 @@ from typing import Any
 
 from sqlalchemy.pool import StaticPool
 
+from .base import BaseEngineOptions
+
 
 class InMemoryProvider:
     """A simple in-memory database provider that leverages sqlite"""
@@ -9,15 +11,15 @@ class InMemoryProvider:
     def __init__(self, use_async: bool = False):
         self._async = use_async
 
+        connect_args = {} if use_async else {"check_same_thread": False}
+        self._options = BaseEngineOptions(pool_size=1, max_overflow=0, connect_args=connect_args)
+
     def get_connection_string(self) -> str:
         if self._async:
             return "sqlite+aiosqlite:///:memory:"
         return "sqlite:///:memory:"
 
     def get_engine_options(self) -> dict[str, Any]:
-        options: dict[str, Any] = {"poolclass": StaticPool}
-
-        if not self._async:
-            # allow multithreaded access
-            options["connect_args"] = {"check_same_thread": False}
-        return options
+        opts = self._options.to_engine_opts()
+        opts["poolclass"] = StaticPool
+        return opts

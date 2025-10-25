@@ -228,7 +228,6 @@ class EntityConfiguration(Generic[T]):
                 autoincrement = False
 
             self._validate_autoincrement(field_name, field_type, autoincrement=autoincrement)
-            # TODO: autoincrement support
             col = Column(
                 field_name,
                 sa_type,
