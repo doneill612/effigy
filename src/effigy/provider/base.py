@@ -1,8 +1,16 @@
-from typing import Protocol, Any
-from dataclasses import dataclass, field
+from typing import Protocol, Any, TypeVar
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class DatabaseProvider(Protocol):
+T = TypeVar("T", bound="BaseEngineOptions", covariant=True)
+
+class DatabaseProvider(Protocol[T]):
+    _opt: T
+
+    def __init__(self, options: T):
+        self._opt = options
+
     def get_connection_string(self) -> str:
         """Gets the complete SQLAlchemy compatible connection string for the database.
 
@@ -13,24 +21,24 @@ class DatabaseProvider(Protocol):
         """
         ...
 
-    # TODO: probably want to come up with a type instead of dict[str, Any]
     def get_engine_options(self) -> dict[str, Any]:
         """Gets SQLAlchemy engine configuration options."""
-        ...
+        return self._opt.to_engine_opts()
 
 
-@dataclass(frozen=True)
-class BaseEngineOptions:
+class BaseEngineOptions(BaseModel):
 
-    pool_size: int = 5
-    echo: bool = False
-    echo_pool: bool = False
-    max_overflow: int = 10
-    pool_timeout: float = 60.0
-    pool_recycle: float = 3600
-    pool_preping: bool = False
-    isolation_level: str | None = None
-    connect_args: dict[str, Any] = field(default_factory=dict)
+    model_config = ConfigDict(frozen=True)
+
+    pool_size: int = Field(default=5)
+    echo: bool = Field(default=False)
+    echo_pool: bool = Field(default=False)
+    max_overflow: int = Field(default=10)
+    pool_timeout: float = Field(default=60.0)
+    pool_recycle: float = Field(default=3600)
+    pool_preping: bool = Field(default=False)
+    isolation_level: str | None = Field(default=None)
+    connect_args: dict[str, Any] = Field(default_factory=dict)
 
     def to_engine_opts(self) -> dict[str, Any]:
         """Converts this engine options instance into SQLAlchemy engine keyword arguments"""
