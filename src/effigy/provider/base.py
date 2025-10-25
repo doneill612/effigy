@@ -3,9 +3,12 @@ from typing import Protocol, Any, TypeVar
 from pydantic import BaseModel, ConfigDict, Field
 
 
-T = TypeVar("T", bound="BaseEngineOptions", covariant=True)
+T = TypeVar("T", bound="BaseEngineOptions")
 
-class DatabaseProvider(Protocol[T]):
+
+# TODO: mypy says it expects invariant TypeVar, linter says it expects covariant...
+# figure that out.
+class DatabaseProvider(Protocol[T]):  # type: ignore[reportInvalidTypeVarUse]
     _opt: T
 
     def __init__(self, options: T):

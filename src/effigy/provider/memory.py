@@ -1,25 +1,26 @@
 from typing import Any
 
+from pydantic import Field
 from sqlalchemy.pool import StaticPool
 
-from .base import BaseEngineOptions
+from .base import BaseEngineOptions, DatabaseProvider
 
 
-class InMemoryProvider:
-    """A simple in-memory database provider that leverages sqlite"""
+class InMemoryEngineOptions(BaseEngineOptions):
 
-    def __init__(self, use_async: bool = False):
-        self._async = use_async
+    use_async: bool = Field(default=False)
 
-        connect_args = {} if use_async else {"check_same_thread": False}
-        self._options = BaseEngineOptions(pool_size=1, max_overflow=0, connect_args=connect_args)
+    def to_engine_opts(self) -> dict[str, Any]:
+        opts = super().to_engine_opts()
 
-    def get_connection_string(self) -> str:
-        if self._async:
-            return "sqlite+aiosqlite:///:memory:"
-        return "sqlite:///:memory:"
-
-    def get_engine_options(self) -> dict[str, Any]:
-        opts = self._options.to_engine_opts()
         opts["poolclass"] = StaticPool
         return opts
+
+
+class InMemoryProvider(DatabaseProvider[InMemoryEngineOptions]):
+    """A simple in-memory database provider that leverages sqlite"""
+
+    def get_connection_string(self) -> str:
+        if self._opt.use_async:
+            return "sqlite+aiosqlite:///:memory:"
+        return "sqlite:///:memory:"
