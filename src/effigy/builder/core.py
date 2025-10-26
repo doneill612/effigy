@@ -95,7 +95,7 @@ class _EntityConfiguration(Generic[T]):
     def _get_keyname_from_navigation(self, navigation: Callable[[T], Any]) -> str:
         proxy = _EntityProxy(self._entity_type)
         keyattr = navigation(cast(T, proxy))
-        return keyattr.key
+        return cast(str, keyattr.key)
 
     def _get_property_config_by_keyname(self, keyname: str) -> PropertyConfiguration[T]:
         # if keyname is in properties, return it - otherwise, create config

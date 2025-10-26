@@ -1,20 +1,18 @@
-from typing import Protocol, Any, TypeVar
+from abc import ABC, abstractmethod
+from typing import Any, TypeVar, Generic
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-E = TypeVar("E", bound="BaseEngineOptions")
+E = TypeVar("E", bound="BaseEngineOptions", covariant=True)
 
 
-# TODO: mypy says it expects invariant TypeVar, linter says it expects covariant...
-# figure that out.
-class DatabaseProvider(Protocol[E]):
-
-    _opt: E
+class DatabaseProvider(ABC, Generic[E]):
 
     def __init__(self, options: E):
         self._opt = options
 
+    @abstractmethod
     def get_connection_string(self) -> str:
         """Gets the complete SQLAlchemy compatible connection string for the database.
 

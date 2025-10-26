@@ -439,9 +439,7 @@ class TestEdgeCases:
         """save_changes() can be called explicitly within context manager"""
         # save_changes() can be called explicitly even though context manager auto-commits on exit
         with integration_context as ctx:
-            ctx.authors.add(
-                Author(id=1, name="Alice", email="alice@example.com", posts=[])
-            )
+            ctx.authors.add(Author(id=1, name="Alice", email="alice@example.com", posts=[]))
             change_count = ctx.save_changes()
             # Note: change_count may be 0 due to flush() clearing the session state
             # before counting. The important part is that save_changes() succeeds.
