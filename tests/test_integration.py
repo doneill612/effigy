@@ -108,50 +108,54 @@ class TestDatabaseSchemaCreation:
         self, integration_context: IntegrationDbContext
     ) -> None:
         """Verify that entity tables exist in the database"""
-        inspector = inspect(integration_context._engine)
-        table_names = inspector.get_table_names()
+        with integration_context:
+            inspector = inspect(integration_context._engine)
+            table_names = inspector.get_table_names()
 
-        assert "authors" in table_names
-        assert "posts" in table_names
+            assert "authors" in table_names
+            assert "posts" in table_names
 
     def test_author_table_has_correct_columns(
         self, integration_context: IntegrationDbContext
     ) -> None:
         """Verify Author table has expected columns with correct types"""
-        inspector = inspect(integration_context._engine)
-        columns = {col["name"]: col for col in inspector.get_columns("authors")}
+        with integration_context:
+            inspector = inspect(integration_context._engine)
+            columns = {col["name"]: col for col in inspector.get_columns("authors")}
 
-        assert "id" in columns
-        assert "name" in columns
-        assert "email" in columns
+            assert "id" in columns
+            assert "name" in columns
+            assert "email" in columns
 
-        # Verify id is primary key
-        pk_constraint = inspector.get_pk_constraint("authors")
-        assert "id" in pk_constraint["constrained_columns"]
+            # Verify id is primary key
+            pk_constraint = inspector.get_pk_constraint("authors")
+            assert "id" in pk_constraint["constrained_columns"]
 
     def test_post_table_has_correct_columns(
         self, integration_context: IntegrationDbContext
     ) -> None:
         """Verify Post table has expected columns including foreign key"""
-        inspector = inspect(integration_context._engine)
-        columns = {col["name"]: col for col in inspector.get_columns("posts")}
+        with integration_context:
+            inspector = inspect(integration_context._engine)
+            columns = {col["name"]: col for col in inspector.get_columns("posts")}
 
-        assert "id" in columns
-        assert "title" in columns
-        assert "content" in columns
-        assert "author_id" in columns
+            assert "id" in columns
+            assert "title" in columns
+            assert "content" in columns
+            assert "author_id" in columns
 
-        # Verify id is primary key
-        pk_constraint = inspector.get_pk_constraint("posts")
-        assert "id" in pk_constraint["constrained_columns"]
+            # Verify id is primary key
+            pk_constraint = inspector.get_pk_constraint("posts")
+            assert "id" in pk_constraint["constrained_columns"]
 
     def test_foreign_key_column_exists(self, integration_context: IntegrationDbContext) -> None:
         """Verify foreign key column exists in posts table"""
-        inspector = inspect(integration_context._engine)
-        columns = {col["name"]: col for col in inspector.get_columns("posts")}
+        with integration_context:
+            inspector = inspect(integration_context._engine)
+            columns = {col["name"]: col for col in inspector.get_columns("posts")}
 
-        # Verify the foreign key column exists (even if constraint not enforced)
-        assert "author_id" in columns
+            # Verify the foreign key column exists (even if constraint not enforced)
+            assert "author_id" in columns
 
 
 class TestSyncCRUDOperations:
@@ -432,17 +436,18 @@ class TestEdgeCases:
             assert len(authors) == 10
 
     def test_save_changes_explicit_call(self, integration_context: IntegrationDbContext) -> None:
-        """save_changes() can be called explicitly to persist changes"""
-        # Note: when using context manager, it auto-commits on exit
-        # So we test save_changes() without context manager
-        integration_context.authors.add(
-            Author(id=1, name="Alice", email="alice@example.com", posts=[])
-        )
-        change_count = integration_context.save_changes()
-        # Note: change_count may be 0 due to flush() clearing the session state
-        # before counting. The important part is that save_changes() succeeds.
-        assert isinstance(change_count, int)
+        """save_changes() can be called explicitly within context manager"""
+        # save_changes() can be called explicitly even though context manager auto-commits on exit
+        with integration_context as ctx:
+            ctx.authors.add(
+                Author(id=1, name="Alice", email="alice@example.com", posts=[])
+            )
+            change_count = ctx.save_changes()
+            # Note: change_count may be 0 due to flush() clearing the session state
+            # before counting. The important part is that save_changes() succeeds.
+            assert isinstance(change_count, int)
 
         # Verify the change persisted
-        authors = integration_context.authors.to_list()
-        assert len(authors) == 1
+        with integration_context as ctx:
+            authors = ctx.authors.to_list()
+            assert len(authors) == 1

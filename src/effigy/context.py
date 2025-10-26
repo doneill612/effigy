@@ -2,8 +2,13 @@ from abc import ABC, abstractmethod
 from typing import get_origin, get_args, Any
 from typing_extensions import Self
 
-from sqlalchemy import MetaData, create_engine
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy import MetaData, create_engine, Engine
+from sqlalchemy.ext.asyncio import (
+    create_async_engine,
+    AsyncSession,
+    async_sessionmaker,
+    AsyncEngine,
+)
 from sqlalchemy.orm import sessionmaker, Session
 
 from .builder.core import DbBuilder
@@ -21,18 +26,20 @@ class DbContext(ABC):
         self._engine = create_engine(connection_string, **opts)
         self._session_factory = sessionmaker(bind=self._engine)
         self._session: Session | None = None
-        self._init_dbsets()
+        self._metadata = self._init_dbsets()
+
+        self._metadata.create_all(self._engine, checkfirst=True)
 
     @abstractmethod
     def setup(self, builder: DbBuilder) -> None: ...
 
     def _get_session(self) -> Session:
-        """Internal method to get or create the session. Not part of public API."""
+        """Internal method to get the session. Not part of public API."""
         if not self._session:
-            self._session = self._session_factory()
+            raise RuntimeError("Session not initialized. Use `with` statement.")
         return self._session
 
-    def _init_dbsets(self) -> None:
+    def _init_dbsets(self) -> MetaData:
         metadata = MetaData()
         builder = DbBuilder(metadata)
 
@@ -40,13 +47,13 @@ class DbContext(ABC):
 
         builder._finalize()
 
-        metadata.create_all(self._engine, checkfirst=True)
-
         for name, annotation in self.__annotations__.items():
             if get_origin(annotation) is DbSet:
                 entity_type = get_args(annotation)[0]
                 dbset = DbSet(entity_type, self)
                 setattr(self, name, dbset)
+
+        return metadata
 
     def save_changes(self) -> int:
         """Attempts to persist changes to the database.
@@ -71,6 +78,7 @@ class DbContext(ABC):
         self._engine.dispose()
 
     def __enter__(self) -> Self:
+        self._session = self._session_factory()
         return self
 
     def __exit__(

@@ -16,6 +16,8 @@ class TestDbContextInitialization:
         assert db_context is not None
         assert hasattr(db_context, "_engine")
         assert hasattr(db_context, "_session_factory")
+        assert db_context._engine is not None
+        assert db_context._session_factory is not None
 
 
     def test_init_dbsets_discovers_dbset_attributes(self, db_context: SampleDbContext) -> None:
@@ -29,19 +31,26 @@ class TestDbContextInitialization:
 class TestDbContextSession:
     """Tests for DbContext session management"""
 
-    def test_session_lazy_initialization(self, db_context: SampleDbContext) -> None:
-        """_get_session() creates session on first access"""
+    def test_session_requires_context_manager(self, db_context: SampleDbContext) -> None:
+        """_get_session() raises error when used without context manager"""
         assert db_context._session is None
-        session = db_context._get_session()
-        assert session is not None
-        assert db_context._session is session
+        with pytest.raises(RuntimeError, match="Session not initialized. Use `with` statement."):
+            db_context._get_session()
+
+    def test_session_available_in_context(self, db_context: SampleDbContext) -> None:
+        """_get_session() returns session when inside context manager"""
+        with db_context:
+            session = db_context._get_session()
+            assert session is not None
+            assert db_context._session is session
 
     def test_session_reuse_on_multiple_accesses(self, db_context: SampleDbContext) -> None:
         """_get_session() returns same session on multiple accesses"""
-        session1 = db_context._get_session()
-        session2 = db_context._get_session()
+        with db_context:
+            session1 = db_context._get_session()
+            session2 = db_context._get_session()
 
-        assert session1 is session2
+            assert session1 is session2
 
 
 class TestDbContextSaveChanges:
@@ -49,9 +58,10 @@ class TestDbContextSaveChanges:
 
     def test_save_changes_commits_successfully(self, db_context: SampleDbContext) -> None:
         """save_changes() commits changes to database"""
-        change_count = db_context.save_changes()
+        with db_context:
+            change_count = db_context.save_changes()
 
-        assert isinstance(change_count, int)
+            assert isinstance(change_count, int)
 
 
 class TestDbContextContextManager:
@@ -91,8 +101,9 @@ class TestDbContextDispose:
 
     def test_dispose_closes_session(self, db_context: SampleDbContext) -> None:
         """dispose() closes the session and disposes engine"""
-        session = db_context._get_session()
-        assert session is not None
+        with db_context:
+            session = db_context._get_session()
+            assert session is not None
 
         db_context.dispose()
 
