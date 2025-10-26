@@ -138,9 +138,7 @@ class TestTableCreation:
             order_lines: DbSet[OrderLine]
 
             def setup(self, builder: DbBuilder) -> None:
-                builder.entity(OrderLine).has_key(lambda o: o.order_id).has_key(
-                    lambda o: o.product_id
-                )
+                builder.entity(OrderLine).has_key(lambda o: o.order_id, lambda o: o.product_id)
 
         provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         ctx = TestContext(provider)
@@ -155,6 +153,29 @@ class TestTableCreation:
             assert not table.c.quantity.primary_key
         finally:
             ctx.dispose()
+
+    def test_autoincrement_fails_on_composite_pk(self) -> None:
+        """Should not be able to create a composite primary key with autoincrement"""
+
+        @entity
+        class OrderLine:
+            order_id: int
+            product_id: int
+            quantity: int
+
+        class TestContext(DbContext):
+            order_lines: DbSet[OrderLine]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(OrderLine).has_key(
+                    lambda o: o.order_id, lambda o: o.product_id, autoincrement=True
+                )
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        with pytest.raises(
+            ValueError, match="Autoincrement only supported on single-column primary keys"
+        ):
+            TestContext(provider)
 
     def test_skips_collection_fields(self) -> None:
         """list, dict, and set fields should not create columns"""

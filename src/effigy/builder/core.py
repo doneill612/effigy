@@ -71,23 +71,31 @@ class _EntityConfiguration(Generic[T]):
         return self._properties[prop_name]
 
     def has_key(
-        self, navigation: Callable[[T], Any], *, autoincrement: bool = False
+        self, *navigations: Callable[[T], Any], autoincrement: bool = False
     ) -> "_EntityConfiguration[T]":
-        """Marks a field as a primary key.
+        """Marks one or more fields as a primary key.
 
         Args:
-            navigation: lambda function (lambda u: u.id) that references the attribute to make a primary key
-            autoincrement: Whether or not the primary key should be treated as autoincrementing
+            navigations: lambda functions that reference the attribute(s) to make a primary key
+            autoincrement: Whether or not the primary key should be treated as autoincrementing.
+                This will only work for single-column primary keys, i.e. with one navigation lambda specified
         """
+        if len(navigations) == 0:
+            raise ValueError("Must specify at least one primary key")
+        if autoincrement and len(navigations) > 1:
+            raise ValueError("Autoincrement only supported on single-column primary keys")
+        for navigation in navigations:
+            keyname = self._get_keyname_from_navigation(navigation)
+            propconfig = self._get_property_config_by_keyname(keyname)
+            self._pks.append(keyname)
+            if autoincrement:
+                propconfig.autoincrement()
+        return self
+
+    def _get_keyname_from_navigation(self, navigation: Callable[[T], Any]) -> str:
         proxy = _EntityProxy(self._entity_type)
         keyattr = navigation(cast(T, proxy))
-        keyname = keyattr.key
-
-        self._pks.append(keyname)
-
-        if autoincrement:
-            self._get_property_config_by_keyname(keyname).autoincrement()
-        return self
+        return keyattr.key
 
     def _get_property_config_by_keyname(self, keyname: str) -> PropertyConfiguration[T]:
         # if keyname is in properties, return it - otherwise, create config
