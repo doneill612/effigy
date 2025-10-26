@@ -165,6 +165,9 @@ class _EntityConfiguration(Generic[T]):
             # fallback to __annotations__ if get_type_hints fails
             type_hints = getattr(self._entity_type, "__annotations__", {})
 
+        if not self._pks:
+            raise ValueError(f"Table {table_name} must have at least one primary key")
+
         columns = []
         for field_name, field_type in type_hints.items():
             # skip private attributes and special attributes
@@ -246,14 +249,6 @@ class _EntityConfiguration(Generic[T]):
                 autoincrement=autoincrement if autoincrement else "auto",
             )
             columns.append(col)
-
-        if not any(col.primary_key for col in columns):
-            col_info = [(c.name, c.primary_key) for c in columns]
-            raise ValueError(
-                f"Entity {self._entity_type.__name__} must have at least one primary key. "
-                f"Use .has_key() in the builder configuration. "
-                f"PKs configured: {self._pks}, Columns: {col_info}"
-            )
 
         table = Table(table_name, metadata, *columns)
 
