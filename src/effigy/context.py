@@ -23,7 +23,7 @@ class DbContext(ABC):
         connection_string = provider.get_connection_string()
         opts = provider.get_engine_options()
 
-        self._engine = create_engine(connection_string, **opts)
+        self._engine: Engine = create_engine(connection_string, **opts)
         self._session_factory = sessionmaker(bind=self._engine)
         self._session: Session | None = None
         self._metadata = self._init_dbsets()
@@ -98,7 +98,7 @@ class AsyncDbContext(ABC):
         connection_string = provider.get_connection_string()
         opts = provider.get_engine_options()
 
-        self._engine = create_async_engine(connection_string, **opts)
+        self._engine: AsyncEngine = create_async_engine(connection_string, **opts)
         self._session_factory = async_sessionmaker(bind=self._engine, class_=AsyncSession)
         self._session: AsyncSession | None = None
         self._metadata = self._init_dbsets()
