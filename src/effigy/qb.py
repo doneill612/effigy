@@ -26,9 +26,8 @@ class _IncludeChain:
             tmapper = final.path[-1]
             # tmapper.entity returns the mapped class for relationships
             # we know this will have .entity because it's a relationship path
-            if hasattr(tmapper, "entity"):
-                nested = then(tmapper.entity)
-                final = final.joinedload(nested)
+            nested = then(tmapper.entity)  # type: ignore[reportAttributeAccessIssue]
+            final = final.joinedload(nested)
         return final
 
 

@@ -1,5 +1,19 @@
-from typing import AsyncIterator, Iterator, Type, TypeVar, Generic, Callable, Any, TYPE_CHECKING
-from sqlalchemy import ColumnElement, select
+from typing import (
+    AsyncIterator,
+    Iterable,
+    Iterator,
+    Type,
+    TypeVar,
+    Generic,
+    Callable,
+    Any,
+    TYPE_CHECKING,
+    cast,
+)
+from sqlalchemy import ColumnElement, ResultProxy, select, update
+
+
+from .entity import _EntityProxy
 
 
 if TYPE_CHECKING:
@@ -38,6 +52,21 @@ class DbSet(Generic[T]):
     def add(self, entity: T) -> T:
         self._context._get_session().add(entity)
         return entity
+
+    def add_range(self, entities: Iterable[T]) -> None:
+        elist = list(entities)
+        self._context._get_session().bulk_save_objects(elist)
+
+    def update_where(self, predicate: Callable[[T], bool], **updates: Any) -> None:
+        proxy = _EntityProxy(self._entity_type)
+        filterexpr = predicate(cast(T, proxy))
+        statement = (
+            # we know that __table__ will exist by now
+            update(getattr(self._entity_type, "__table__"))
+            .where(cast(ColumnElement[bool], filterexpr))
+            .values(**updates)
+        )
+        self._context._get_session().execute(statement)
 
     def remove(self, entity: T) -> None:
         self._context._get_session().delete(entity)
