@@ -47,6 +47,8 @@ class DbBuilder:
         for config in self._entity_configs.values():
             config._create_table(self._metadata)
         for config in self._entity_configs.values():
+            config._create_indexes()
+        for config in self._entity_configs.values():
             config._create_relationships()
 
 
@@ -115,6 +117,18 @@ class _EntityConfiguration(Generic[T]):
         return rel_config
 
     def has_many(self, navigation: Callable[[T], Any]) -> RelationshipConfiguration[T]:
+        """Configures a one-to-many relationship.
+
+        For a many-to-many relationship, chain with .with_many():
+            builder.entity(Post).has_many(lambda p: p.tags).with_many(lambda t: t.posts)
+
+        Args:
+            navigation: lambda function that references the collection attribute
+
+        Returns:
+            RelationshipConfiguration for further configuration (with_many, with_foreign_key,
+            backpopulates, cascade, etc.)
+        """
         proxy = _EntityProxy(self._entity_type)
         navattr = navigation(cast(T, proxy))
         navname = navattr.key
@@ -124,6 +138,27 @@ class _EntityConfiguration(Generic[T]):
         )
         self._relationships.append(rel_config)
         return rel_config
+
+    def has_index(
+        self, *navigations: Callable[[T], Any], unique: bool = False, name: str | None = None
+    ) -> "_EntityConfiguration[T]":
+        """Creates an index on one or more fields.
+
+        Args:
+            navigations: lambda functions that reference the attribute(s) to index
+            unique: Whether this should be a unique index
+            name: Optional custom name for the index. If not provided, a name will be auto-generated
+
+        Returns:
+            Self for method chaining
+        """
+        if len(navigations) == 0:
+            raise ValueError("Must specify at least one field to index")
+
+        field_names = [self._get_keyname_from_navigation(nav) for nav in navigations]
+        index_config = IndexConfiguration(field_names, unique=unique, name=name)
+        self._indexes.append(index_config)
+        return self
 
     def _validate_autoincrement(
         self, field_name: str, field_type: Type[Any], *, autoincrement: bool
@@ -261,6 +296,21 @@ class _EntityConfiguration(Generic[T]):
             mapper_reg = registry()
             mapper_reg.map_imperatively(self._entity_type, table)
 
+    def _create_indexes(self) -> None:
+        """Creates SQLAlchemy Index objects for all configured indexes.
+
+        This method applies all configured indexes by calling create_index() on each
+        IndexConfiguration. The indexes are created on the table that was previously
+        created by _create_table().
+        """
+        table = getattr(self._entity_type, "__table__", None)
+        if table is None:
+            raise ValueError(f"Entity {self._entity_type.__name__} has no table configured")
+
+        table_name = getattr(self._entity_type, "__tablename__")
+        for index_config in self._indexes:
+            index_config.create_index(table, table_name)
+
     def _create_relationships(self) -> None:
         """Creates SQLAlchemy relationship() objects and attaches them to entity classes.
 
@@ -270,11 +320,59 @@ class _EntityConfiguration(Generic[T]):
         2. Attaches the relationship to the entity class as a dynamic attribute
         3. Handles foreign key references if specified
         4. Sets up bidirectional relationships via back_populates if configured
-
-        Note: This must be called after _create_table() because relationships may
-        reference foreign key columns that need to exist first.
         """
         for rel_config in self._relationships:
-            # TODO: add validation to ensure related entity is also configured
-            # TODO: add validation for foreign key column existence
+            self._validate_relationship(rel_config)
             rel_config._apply()
+
+    def _validate_relationship(self, rel_config: RelationshipConfiguration[T]) -> None:
+        """Validates a relationship configuration before applying it.
+
+        This checks:
+        1. That the related entity is also configured in the builder
+        2. For non-M:M relationships, that the foreign key column exists
+
+        Args:
+            rel_config: The relationship configuration to validate
+
+        Raises:
+            ValueError: If validation fails
+        """
+        # determine the related entity if not already set
+        if not rel_config._related_entity:
+            rel_config._related_entity = rel_config._determine_related_entity()
+
+        related_entity = rel_config._related_entity
+
+        # validate that the related entity is configured in the builder
+        if related_entity not in self._builder._entity_configs:
+            raise ValueError(
+                f"Cannot create relationship '{rel_config._navigation_name}' on "
+                f"{self._entity_type.__name__}. The related entity "
+                f"{related_entity.__name__} is not configured in the builder. "
+                f"Please configure it using builder.entity({related_entity.__name__})."
+            )
+
+        if rel_config._relationship_type != RelationshipType.MANY_TO_MANY:
+            if rel_config._fk_prop:
+                # determine which entity owns the FK
+                if rel_config._relationship_type == RelationshipType.ONE_TO_MANY:
+                    fk_owner = related_entity
+                else:
+                    fk_owner = self._entity_type
+
+                fk_table = getattr(fk_owner, "__table__", None)
+                if fk_table is None:
+                    raise ValueError(
+                        f"Cannot validate foreign key for relationship "
+                        f"'{rel_config._navigation_name}'. The entity "
+                        f"{fk_owner.__name__} has no table configured."
+                    )
+
+                if rel_config._fk_prop not in fk_table.columns:
+                    raise ValueError(
+                        f"Cannot create relationship '{rel_config._navigation_name}' on "
+                        f"{self._entity_type.__name__}. The foreign key column "
+                        f"'{rel_config._fk_prop}' does not exist on {fk_owner.__name__}. "
+                        f"Available columns: {', '.join(fk_table.columns.keys())}"
+                    )

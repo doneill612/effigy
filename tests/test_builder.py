@@ -561,3 +561,413 @@ class TestBuilderFinalize:
             assert "user_id" in [c.name for c in post_table.columns]
         finally:
             ctx.dispose()
+
+
+class TestIndexes:
+    """Tests for DbBuilder index functionality"""
+
+    def test_creates_single_column_index(self) -> None:
+        """Single-column index should be created on the table"""
+
+        @entity
+        class Product:
+            id: int
+            name: str
+            sku: str
+
+        class TestContext(DbContext):
+            products: DbSet[Product]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(Product).has_key(lambda p: p.id).has_index(lambda p: p.sku)
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        ctx = TestContext(provider)
+        try:
+            table = getattr(Product, "__table__")
+            # Check that an index was created
+            indexes = list(table.indexes)
+            assert len(indexes) == 1
+            assert indexes[0].name == "ix_products_sku"
+            assert not indexes[0].unique
+            # Check that the index is on the correct column
+            assert len(indexes[0].columns) == 1
+            assert "sku" in [col.name for col in indexes[0].columns]
+        finally:
+            ctx.dispose()
+
+    def test_creates_composite_index(self) -> None:
+        """Multi-column index should be created on the table"""
+
+        @entity
+        class Product:
+            id: int
+            category: str
+            subcategory: str
+            name: str
+
+        class TestContext(DbContext):
+            products: DbSet[Product]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(Product).has_key(lambda p: p.id).has_index(
+                    lambda p: p.category, lambda p: p.subcategory
+                )
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        ctx = TestContext(provider)
+        try:
+            table = getattr(Product, "__table__")
+            indexes = list(table.indexes)
+            assert len(indexes) == 1
+            assert indexes[0].name == "ix_products_category_subcategory"
+            # Check that the index is on both columns
+            assert len(indexes[0].columns) == 2
+            column_names = [col.name for col in indexes[0].columns]
+            assert "category" in column_names
+            assert "subcategory" in column_names
+        finally:
+            ctx.dispose()
+
+    def test_creates_unique_index(self) -> None:
+        """Unique index should have unique=True"""
+
+        @entity
+        class Product:
+            id: int
+            sku: str
+
+        class TestContext(DbContext):
+            products: DbSet[Product]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(Product).has_key(lambda p: p.id).has_index(
+                    lambda p: p.sku, unique=True
+                )
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        ctx = TestContext(provider)
+        try:
+            table = getattr(Product, "__table__")
+            indexes = list(table.indexes)
+            assert len(indexes) == 1
+            assert indexes[0].name == "uq_products_sku"
+            assert indexes[0].unique
+        finally:
+            ctx.dispose()
+
+    def test_creates_index_with_custom_name(self) -> None:
+        """Index with custom name should use that name"""
+
+        @entity
+        class Product:
+            id: int
+            sku: str
+
+        class TestContext(DbContext):
+            products: DbSet[Product]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(Product).has_key(lambda p: p.id).has_index(
+                    lambda p: p.sku, name="idx_custom_sku"
+                )
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        ctx = TestContext(provider)
+        try:
+            table = getattr(Product, "__table__")
+            indexes = list(table.indexes)
+            assert len(indexes) == 1
+            assert indexes[0].name == "idx_custom_sku"
+        finally:
+            ctx.dispose()
+
+    def test_creates_multiple_indexes(self) -> None:
+        """Multiple has_index calls should create multiple indexes"""
+
+        @entity
+        class Product:
+            id: int
+            sku: str
+            name: str
+            category: str
+
+        class TestContext(DbContext):
+            products: DbSet[Product]
+
+            def setup(self, builder: DbBuilder) -> None:
+                (
+                    builder.entity(Product)
+                    .has_key(lambda p: p.id)
+                    .has_index(lambda p: p.sku, unique=True)
+                    .has_index(lambda p: p.name)
+                    .has_index(lambda p: p.category)
+                )
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        ctx = TestContext(provider)
+        try:
+            table = getattr(Product, "__table__")
+            indexes = list(table.indexes)
+            assert len(indexes) == 3
+            index_names = [idx.name for idx in indexes]
+            assert "uq_products_sku" in index_names
+            assert "ix_products_name" in index_names
+            assert "ix_products_category" in index_names
+        finally:
+            ctx.dispose()
+
+    def test_index_requires_at_least_one_column(self) -> None:
+        """has_index should raise error if no columns specified"""
+
+        @entity
+        class Product:
+            id: int
+            name: str
+
+        class TestContext(DbContext):
+            products: DbSet[Product]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(Product).has_key(lambda p: p.id).has_index()  # type: ignore
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        with pytest.raises(ValueError, match="Must specify at least one field to index"):
+            TestContext(provider)
+
+
+# Define entities at module level for M:M tests to allow forward reference resolution
+@entity
+class MTMPost:
+    id: int
+    title: str
+    tags: list["MTMTag"]
+
+
+@entity
+class MTMTag:
+    id: int
+    name: str
+
+
+@entity
+class MTMStudent:
+    id: int
+    name: str
+    courses: list["MTMCourse"]
+
+
+@entity
+class MTMCourse:
+    id: int
+    title: str
+    students: list[MTMStudent]
+
+
+@entity
+class MTMPost2:
+    id: int
+    title: str
+    tags: list["MTMTag2"]
+
+
+@entity
+class MTMTag2:
+    id: int
+    name: str
+
+
+class TestManyToManyRelationships:
+    """Tests for many-to-many relationship functionality"""
+
+    def test_creates_many_to_many_relationship(self) -> None:
+        """Many-to-many relationship should create association table"""
+
+        class TestContext(DbContext):
+            posts: DbSet[MTMPost]
+            tags: DbSet[MTMTag]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(MTMPost).has_key(lambda p: p.id).has_many(
+                    lambda p: p.tags
+                ).with_many()
+                builder.entity(MTMTag).has_key(lambda t: t.id)
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        ctx = TestContext(provider)
+        try:
+            # verify both entity tables were created
+            assert hasattr(MTMPost, "__table__")
+            assert hasattr(MTMTag, "__table__")
+
+            # verify relationship was created
+            assert hasattr(MTMPost, "tags")
+
+            # verify association table was created
+            post_table = getattr(MTMPost, "__table__")
+            metadata = post_table.metadata
+
+            # association table should be named 'mtmposts_mtmtags' (alphabetical order)
+            assert "mtmposts_mtmtags" in metadata.tables
+
+            association_table = metadata.tables["mtmposts_mtmtags"]
+
+            # verify association table has correct columns
+            assert "mtmposts_id" in association_table.columns
+            assert "mtmtags_id" in association_table.columns
+
+            # verify both columns are primary keys
+            assert association_table.columns["mtmposts_id"].primary_key
+            assert association_table.columns["mtmtags_id"].primary_key
+
+            # verify foreign key constraints exist
+            fks = list(association_table.foreign_keys)
+            assert len(fks) == 2
+            fk_references = [fk.column.table.name for fk in fks]
+            assert "mtmposts" in fk_references
+            assert "mtmtags" in fk_references
+        finally:
+            ctx.dispose()
+
+    def test_creates_bidirectional_many_to_many_relationship(self) -> None:
+        """Bidirectional M:M should work with with_many"""
+
+        class TestContext(DbContext):
+            students: DbSet[MTMStudent]
+            courses: DbSet[MTMCourse]
+
+            def setup(self, builder: DbBuilder) -> None:
+                # Configure both sides of the M:M relationship
+                builder.entity(MTMStudent).has_key(lambda s: s.id).has_many(
+                    lambda s: s.courses
+                ).with_many(lambda c: c.students)
+                builder.entity(MTMCourse).has_key(lambda c: c.id).has_many(
+                    lambda c: c.students
+                ).with_many(lambda s: s.courses)
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        ctx = TestContext(provider)
+        try:
+            # Verify both relationships exist
+            assert hasattr(MTMStudent, "courses")
+            assert hasattr(MTMCourse, "students")
+
+            # Verify only one association table was created (shared between both sides)
+            student_table = getattr(MTMStudent, "__table__")
+            metadata = student_table.metadata
+            assert "mtmcourses_mtmstudents" in metadata.tables
+        finally:
+            ctx.dispose()
+
+    def test_many_to_many_with_foreign_key_raises_error(self) -> None:
+        """M:M relationships should not allow with_foreign_key"""
+
+        class TestContext(DbContext):
+            posts: DbSet[MTMPost2]
+            tags: DbSet[MTMTag2]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(MTMPost2).has_key(lambda p: p.id).has_many(
+                    lambda p: p.tags
+                ).with_many().with_foreign_key(
+                    lambda p: p.id
+                )  # Should fail
+                builder.entity(MTMTag2).has_key(lambda t: t.id)
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        with pytest.raises(ValueError, match="with_foreign_key.*not applicable for many-to-many"):
+            TestContext(provider)
+
+    def test_with_many_only_on_one_to_many(self) -> None:
+        """with_many() should only work on one-to-many relationships"""
+
+        @entity
+        class TestUser:
+            id: int
+            name: str
+
+        @entity
+        class TestPost:
+            id: int
+            user_id: int
+            user: TestUser
+
+        class TestContext(DbContext):
+            users: DbSet[TestUser]
+            posts: DbSet[TestPost]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(TestUser).has_key(lambda u: u.id)
+                builder.entity(TestPost).has_key(lambda p: p.id).has_one(
+                    lambda p: p.user
+                ).with_many()  # should fail - has_one creates MANY_TO_ONE
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        with pytest.raises(ValueError, match="with_many.*can only be called on one-to-many"):
+            TestContext(provider)
+
+
+# define entities at module level for validation tests to allow forward reference resolution
+@entity
+class ValTestUser:
+    id: int
+    name: str
+    posts: list["ValTestPost"]
+
+
+@entity
+class ValTestPost:
+    id: int
+    title: str
+    user_id: int
+
+
+@entity
+class ValTest2User:
+    id: int
+    name: str
+    posts: list["ValTest2Post"]
+
+
+@entity
+class ValTest2Post:
+    id: int
+    title: str
+    # missing user_id column - intentional for FK validation test
+
+
+class TestRelationshipValidation:
+    """Tests for relationship validation functionality"""
+
+    def test_validates_related_entity_is_configured(self) -> None:
+        """Should raise error if related entity is not configured"""
+
+        class TestContext(DbContext):
+            users: DbSet[ValTestUser]
+
+            def setup(self, builder: DbBuilder) -> None:
+                # configure User with relationship to Post, but don't configure Post
+                builder.entity(ValTestUser).has_key(lambda u: u.id).has_many(
+                    lambda u: u.posts
+                ).with_foreign_key(lambda p: p.user_id)
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        with pytest.raises(ValueError, match="related entity.*not configured"):
+            TestContext(provider)
+
+    def test_validates_foreign_key_column_exists(self) -> None:
+        """Should raise error if foreign key column doesn't exist"""
+
+        class TestContext(DbContext):
+            users: DbSet[ValTest2User]
+            posts: DbSet[ValTest2Post]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(ValTest2User).has_key(lambda u: u.id).has_many(
+                    lambda u: u.posts
+                ).with_foreign_key(lambda p: p.user_id)
+                builder.entity(ValTest2Post).has_key(lambda p: p.id)
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        with pytest.raises(AttributeError, match="Property 'user_id' does not exist"):
+            TestContext(provider)
