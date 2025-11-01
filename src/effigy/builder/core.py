@@ -266,12 +266,24 @@ class _EntityConfiguration(Generic[T]):
                 unique = prop_config.is_unique
                 default = prop_config.default
                 autoincrement = prop_config.is_autoincrement
+                server_default = prop_config.server_default
+
+                # apply max_length to string-type cols
+                if prop_config._max_length is not None:
+                    # max_length should only be used on string-type cols
+                    if nonnull_type != str:
+                        raise ValueError(
+                            f"Entity {self._entity_type.__name__} field '{field_name}': "
+                            f"max_len() can only be used on string (str) fields, not {nonnull_type.__name__}"
+                        )
+                    sa_type = String(prop_config._max_length)
             else:
                 # default configuration values (assumed)
                 nullable = is_nullable and not is_primary
                 unique = False
                 default = None
                 autoincrement = False
+                server_default = None
 
             self._validate_autoincrement(field_name, field_type, autoincrement=autoincrement)
             col = Column(
@@ -281,6 +293,7 @@ class _EntityConfiguration(Generic[T]):
                 nullable=nullable,
                 unique=unique,
                 default=default,
+                server_default=server_default,
                 autoincrement=autoincrement if autoincrement else "auto",
             )
             columns.append(col)

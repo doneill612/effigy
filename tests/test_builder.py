@@ -355,6 +355,112 @@ class TestPropertyConfiguration:
         finally:
             ctx.dispose()
 
+    def test_property_max_len_applies_to_string(self) -> None:
+        """property with max_len should set String column length"""
+
+        @entity
+        class User:
+            id: int
+            email: str
+
+        class TestContext(DbContext):
+            users: DbSet[User]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(User).has_key(lambda u: u.id).property(lambda u: u.email).max_len(255)
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        ctx = TestContext(provider)
+        try:
+            assert hasattr(User, "__table__")
+            table = getattr(User, "__table__", None)
+            assert table is not None
+
+            # verify email column has max length of 255
+            assert table.c.email.type.length == 255
+        finally:
+            ctx.dispose()
+
+    def test_property_max_len_rejects_non_string(self) -> None:
+        """max_len should raise ValueError when used on non-string fields"""
+
+        @entity
+        class Product:
+            id: int
+            quantity: int
+
+        class TestContext(DbContext):
+            products: DbSet[Product]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(Product).has_key(lambda p: p.id).property(lambda p: p.quantity).max_len(
+                    10
+                )
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        with pytest.raises(
+            ValueError,
+            match="max_len\\(\\) can only be used on string \\(str\\) fields, not int",
+        ):
+            TestContext(provider)
+
+    def test_property_server_default_static(self) -> None:
+        """property with static server_default should set column server default"""
+
+        @entity
+        class Order:
+            id: int
+            status: str
+
+        class TestContext(DbContext):
+            orders: DbSet[Order]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(Order).has_key(lambda o: o.id).property(
+                    lambda o: o.status
+                ).with_server_default("pending")
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        ctx = TestContext(provider)
+        try:
+            assert hasattr(Order, "__table__")
+            table = getattr(Order, "__table__", None)
+            assert table is not None
+
+            # verify status column has server default
+            assert table.c.status.server_default is not None
+        finally:
+            ctx.dispose()
+
+    def test_property_server_default_callable(self) -> None:
+        """property with callable server_default should accept SQL expressions"""
+        from sqlalchemy import func
+
+        @entity
+        class Article:
+            id: int
+            created_at: str  # simplified for testing
+
+        class TestContext(DbContext):
+            articles: DbSet[Article]
+
+            def setup(self, builder: DbBuilder) -> None:
+                builder.entity(Article).has_key(lambda a: a.id).property(
+                    lambda a: a.created_at
+                ).with_server_default(func.now())
+
+        provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
+        ctx = TestContext(provider)
+        try:
+            assert hasattr(Article, "__table__")
+            table = getattr(Article, "__table__", None)
+            assert table is not None
+
+            # verify created_at column has server default (callable)
+            assert table.c.created_at.server_default is not None
+        finally:
+            ctx.dispose()
+
 
 # Module-level entities for relationship tests
 @entity
