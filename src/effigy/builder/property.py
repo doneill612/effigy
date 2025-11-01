@@ -25,7 +25,6 @@ class PropertyConfiguration(Generic[T]):
         self._default: Any | None = None
         self._server_default: Any | None = None
         self._unique: bool = False
-        self._validators: list[Callable[[Any], bool]] = []
 
     @property
     def is_unique(self) -> bool:
@@ -56,10 +55,6 @@ class PropertyConfiguration(Generic[T]):
 
     def max_len(self, max_len: int) -> Self:
         self._max_length = max_len
-        return self
-
-    def validate_with(self, validator: Callable[[Any], bool]) -> Self:
-        self._validators.append(validator)
         return self
 
     def with_default(self, default: Any) -> Self:
