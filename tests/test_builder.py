@@ -729,7 +729,7 @@ class TestIndexes:
             products: DbSet[Product]
 
             def setup(self, builder: DbBuilder) -> None:
-                builder.entity(Product).has_key(lambda p: p.id).has_index()  # type: ignore
+                builder.entity(Product).has_key(lambda p: p.id).has_index()
 
         provider = InMemoryProvider(InMemoryEngineOptions(use_async=False))
         with pytest.raises(ValueError, match="Must specify at least one field to index"):
